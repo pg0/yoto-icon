@@ -4,8 +4,6 @@ Browser tool to turn any image into a 16x16 PNG icon for the [Yoto player](https
 
 ![Yoto Icon Maker](screenshots/skye.png)
 
-![Background removal, BG color and zoom](screenshots/hero.png)
-
 ## Features
 
 - **Input**: file picker, drag & drop, or paste (Ctrl+V)
