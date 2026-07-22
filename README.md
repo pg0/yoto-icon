@@ -28,9 +28,12 @@ Open `index.html` in any modern browser. Everything runs locally; no image ever 
 
 ## Teaser / currently testing
 - **Text**: add Text and Symbols easy
+
+<img src="screenshots/teaser_text.png" height="250" alt="Text feature"> 
+
 - **Masks**: use paint as image mask
-  
-<img src="screenshots/teaser_text.png" height="300" alt="Text feature"> <img src="screenshots/teaser_mask.png" height="300" alt="Mask feature">
+
+<img src="screenshots/teaser_mask.png" height="250" alt="Mask feature">
 
 
 ## License
