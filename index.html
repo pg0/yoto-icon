@@ -221,6 +221,26 @@
     color: var(--accent);
     border-color: var(--panel-border);
   }
+  .tool-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    color: var(--text-dim);
+  }
+  .tool-btn:hover {
+    color: var(--accent);
+  }
+  .tool-btn.active {
+    background-color: var(--accent);
+    color: var(--accent-text);
+  }
   .file-controls input[type="text"] {
     background: var(--bg);
     color: var(--text);
@@ -532,6 +552,19 @@
     <div class="panel">
       <div class="panel-label">Output (16x16)</div>
       <div class="paint-toolbar">
+        <button id="toolPencil" type="button" class="tool-btn active" title="Pencil">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+            <polygon points="1,15 5,11 13,3 15,5 7,13"/>
+          </svg>
+        </button>
+        <button id="toolBucket" type="button" class="tool-btn" title="Bucket fill">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 5l5-3 5 3-5 3-5-3z"/>
+            <path d="M2 5v3c0 1.5 2.5 3 5 3s5-1.5 5-3V5"/>
+            <circle cx="13.5" cy="12.5" r="1.3" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+        <span class="brush-divider"></span>
         <button id="brushBlack" type="button" class="brush-swatch brush-black" title="Black"></button>
         <button id="brushWhite" type="button" class="brush-swatch brush-white" title="White"></button>
         <span class="brush-divider"></span>
@@ -626,6 +659,8 @@
   const rightCanvas = document.getElementById('rightCanvas');
   const gridOverlay = document.getElementById('gridOverlay');
   const gridToggle = document.getElementById('gridToggle');
+  const toolPencil = document.getElementById('toolPencil');
+  const toolBucket = document.getElementById('toolBucket');
   const brushBlack = document.getElementById('brushBlack');
   const brushWhite = document.getElementById('brushWhite');
   const brushColor = document.getElementById('brushColor');
@@ -672,6 +707,7 @@
   // null = untouched, {r,g,b} = painted color, 'erase' = forced transparent.
   let paintLayer = new Array(FINAL_SIZE * FINAL_SIZE).fill(null);
   let activeBrush = null; // 'black' | 'white' | 'color' | 'eraser' | null
+  let paintTool = 'pencil'; // 'pencil' | 'bucket'
   let isPainting = false;
   // "Canvas" base-mode: non-destructive override of what the paint layer
   // sits on top of. Never touches paintLayer itself and never goes through
@@ -764,12 +800,19 @@
     "<polygon points='1,15 5,11 3,13' fill='black'/>" +
     "</svg>";
   const PENCIL_CURSOR = 'url("data:image/svg+xml,' + encodeURIComponent(PENCIL_SVG) + '") 1 15, crosshair';
+  const BUCKET_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'>" +
+    "<path d='M7 1 L13 7 L7 13 L2 8 Z' fill='white' stroke='black' stroke-width='1' stroke-linejoin='round'/>" +
+    "<path d='M13.5 10 q1.5 2.5 0 3.5 q-1.5 -1 0 -3.5' fill='black'/>" +
+    "</svg>";
+  const BUCKET_CURSOR = 'url("data:image/svg+xml,' + encodeURIComponent(BUCKET_SVG) + '") 7 13, crosshair';
 
   function applyActiveBrush() {
     for (const [btn, n] of [[brushBlack, 'black'], [brushWhite, 'white'], [brushColor, 'color'], [brushEraser, 'eraser']]) {
       btn.classList.toggle('active', activeBrush === n);
     }
-    rightCanvas.style.cursor = activeBrush ? PENCIL_CURSOR : 'default';
+    rightCanvas.style.cursor = activeBrush
+      ? (paintTool === 'bucket' ? BUCKET_CURSOR : PENCIL_CURSOR)
+      : 'default';
   }
 
   // Toggling version for the plain swatch buttons: clicking the already-
@@ -789,6 +832,17 @@
     activeBrush = name;
     applyActiveBrush();
   }
+
+  // Pencil/Bucket tool toggle: exactly one active at all times (unlike the
+  // brush swatches, neither ever deselects itself).
+  function setPaintTool(tool) {
+    paintTool = tool;
+    toolPencil.classList.toggle('active', tool === 'pencil');
+    toolBucket.classList.toggle('active', tool === 'bucket');
+    applyActiveBrush(); // cursor follows the tool
+  }
+  toolPencil.addEventListener('click', () => setPaintTool('pencil'));
+  toolBucket.addEventListener('click', () => setPaintTool('bucket'));
 
   brushBlack.addEventListener('click', () => setActiveBrush('black'));
   brushWhite.addEventListener('click', () => setActiveBrush('white'));
@@ -914,6 +968,55 @@
     processAll();
   }
 
+  // key for a cell's CURRENT VISIBLE color (what's actually on screen right
+  // now - post color-reduction/remap/canvasMode/paint, whatever rightCanvas
+  // holds at the moment of the click): fully transparent pixels are their
+  // own group regardless of leftover RGB; otherwise exact RGBA.
+  function visiblePixelKey(data, idx) {
+    const pi = idx * 4;
+    if (data[pi + 3] === 0) return 'transparent';
+    return data[pi] + ',' + data[pi + 1] + ',' + data[pi + 2] + ',' + data[pi + 3];
+  }
+
+  // Bucket fill: 4-neighbor flood fill of the connected region matching the
+  // clicked cell's current displayed color exactly, writing the active
+  // brush's value into the paint layer for every cell in that region. Single
+  // click only (no drag) - one undo snapshot per fill.
+  function bucketFillAt(clientX, clientY) {
+    const rect = rightCanvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const x = Math.floor((clientX - rect.left) / (rect.width / FINAL_SIZE));
+    const y = Math.floor((clientY - rect.top) / (rect.height / FINAL_SIZE));
+    if (x < 0 || y < 0 || x >= FINAL_SIZE || y >= FINAL_SIZE) return;
+    const value = brushValue();
+    if (value === null) return;
+
+    const imgData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
+    const data = imgData.data;
+    const startIdx = y * FINAL_SIZE + x;
+    const targetKey = visiblePixelKey(data, startIdx);
+
+    pushUndoSnapshot(); // once per fill
+    const visited = new Uint8Array(FINAL_SIZE * FINAL_SIZE);
+    const stack = [startIdx];
+    visited[startIdx] = 1;
+    while (stack.length) {
+      const idx = stack.pop();
+      paintLayer[idx] = value;
+      const cx = idx % FINAL_SIZE, cy = (idx - cx) / FINAL_SIZE;
+      const neighbors = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
+      for (const [nx, ny] of neighbors) {
+        if (nx < 0 || ny < 0 || nx >= FINAL_SIZE || ny >= FINAL_SIZE) continue;
+        const nIdx = ny * FINAL_SIZE + nx;
+        if (visited[nIdx]) continue;
+        if (visiblePixelKey(data, nIdx) !== targetKey) continue;
+        visited[nIdx] = 1;
+        stack.push(nIdx);
+      }
+    }
+    processAll();
+  }
+
   // Pointer events (not mouse events) so touch painting works too;
   // setPointerCapture keeps the stroke tracking this element even once the
   // pointer moves outside its bounds during a fast drag.
@@ -921,6 +1024,12 @@
     // No sourceImage gate: painting works standalone from page load, before
     // any image is ever loaded (see processAll's standalone branch).
     if (!activeBrush) return;
+    if (paintTool === 'bucket') {
+      // Single click only - no drag stroke for bucket fill.
+      bucketFillAt(e.clientX, e.clientY);
+      e.preventDefault();
+      return;
+    }
     pushUndoSnapshot(); // once per stroke, before this stroke's first change
     isPainting = true;
     try { rightCanvas.setPointerCapture(e.pointerId); } catch (_) {}
