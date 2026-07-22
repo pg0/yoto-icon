@@ -729,6 +729,10 @@
   // color so re-editing an already-remapped swatch composes cleanly instead
   // of chaining off the previously displayed value. Reset on new image load.
   let colorRemap = new Map();
+  // Bucket map: displayed swatch key -> raw keys of all non-displayed colors
+  // nearest to it. Rebuilt on every updateColorsUsedSwatches call; editing a
+  // swatch registers a remap for itself AND its bucket members.
+  let colorBuckets = new Map();
   // Raw keys currently rendered in the "Colors used" strip, in order - lets
   // updateColorsUsedSwatches tell a live remap edit (same key set) apart
   // from a real pipeline change (different key set) and update swatches in
@@ -1775,11 +1779,26 @@
     // rather than chaining off whatever it currently displays.
     input.addEventListener('input', () => {
       const val = input.value;
-      colorRemap.set(key, {
+      const target = {
         r: parseInt(val.slice(1, 3), 16),
         g: parseInt(val.slice(3, 5), 16),
         b: parseInt(val.slice(5, 7), 16)
-      });
+      };
+      colorRemap.set(key, target);
+      // Bucket follow: every non-displayed color assigned to this swatch is
+      // shifted by the same delta (original rep -> target), clamped to
+      // 0-255. Delta instead of flat replacement so subtle shading inside
+      // the bucket survives the edit. Deltas are always computed from
+      // ORIGINAL raw colors, so repeated edits compose cleanly.
+      const [or, og, ob] = key.split(',').map(Number);
+      const dr = target.r - or, dg = target.g - og, db = target.b - ob;
+      const clamp = v => v < 0 ? 0 : v > 255 ? 255 : v;
+      for (const member of colorBuckets.get(key) || []) {
+        const [mr, mg, mb] = member.split(',').map(Number);
+        colorRemap.set(member, {
+          r: clamp(mr + dr), g: clamp(mg + dg), b: clamp(mb + db)
+        });
+      }
       chip.style.background = val;
       hexLabel.textContent = val;
       processAll();
@@ -1788,8 +1807,8 @@
   }
 
   // rawImageData: the 16x16 processed-image stage, pre-remap. Builds/updates
-  // the "Colors used" strip - unique colors of that stage, sorted by
-  // frequency, capped at 32, each an editable swatch that registers a remap
+  // the "Colors used" strip - unique colors of that stage, frequency-sorted
+  // with diversity-aware selection, capped at 32, each an editable swatch that registers a remap
   // and reprocesses live. When the same set of raw colors is still current
   // (i.e. this call is a live remap edit, not a real pipeline change), the
   // existing swatch DOM nodes are updated in place instead of rebuilt, so an
@@ -1812,10 +1831,67 @@
       counts.set(key, (counts.get(key) || 0) + 1);
     }
     countEl.textContent = ' (' + counts.size + (counts.size === 1 ? ' color)' : ' colors)');
-    const newKeys = Array.from(counts.entries())
+    // Swatch selection. Two regimes:
+    //
+    // <=32 unique colors (typical after color reduction): every color gets
+    // its own exact, independently editable swatch - same behavior as
+    // always, no grouping.
+    //
+    // >32 unique colors (unreduced photos - hundreds of shades): pure
+    // frequency ranking would fill all 32 slots with near-identical
+    // background shades and hide rare but visually distinct colors (a few
+    // yellow pixels of text, etc). Instead, colors are grouped into
+    // FAMILIES by chromaticity (sum-normalized rgb, i.e. hue-ish) plus a
+    // small luma term - so "all the yellowish shades" collapse into one
+    // swatch regardless of lightness, while black/white/gray still
+    // separate. The most frequent member represents the family; the rest
+    // become its bucket and follow edits (see the swatch input handler).
+    const sorted = Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 32)
       .map(([key]) => key);
+    const MAX_SWATCHES = 32;
+    colorBuckets = new Map();
+    let newKeys;
+
+    if (sorted.length <= MAX_SWATCHES) {
+      newKeys = sorted;
+    } else {
+      // chromaticity + weighted luma distance between two [r,g,b]
+      const famDist = (a, b) => {
+        const sa = a[0] + a[1] + a[2] || 1;
+        const sb = b[0] + b[1] + b[2] || 1;
+        const d0 = a[0] / sa - b[0] / sb;
+        const d1 = a[1] / sa - b[1] / sb;
+        const d2 = a[2] / sa - b[2] / sb;
+        return Math.sqrt(d0 * d0 + d1 * d1 + d2 * d2) +
+          0.2 * Math.abs(sa - sb) / 765;
+      };
+      const FAMILY_T = 0.1;
+      const rgbOf = new Map(sorted.map(k => [k, k.split(',').map(Number)]));
+      const picked = [];
+      for (const key of sorted) {
+        if (picked.length >= MAX_SWATCHES) break;
+        const rgb = rgbOf.get(key);
+        if (picked.every(p => famDist(rgb, rgbOf.get(p)) >= FAMILY_T)) {
+          picked.push(key);
+        }
+      }
+      // Every non-displayed color joins its nearest family's bucket. No
+      // frequency backfill of leftover slots: a backfilled in-family swatch
+      // would sit outside its family's bucket and stop following edits.
+      for (const key of sorted) {
+        if (picked.includes(key)) continue;
+        const rgb = rgbOf.get(key);
+        let best = picked[0], bestD = Infinity;
+        for (const p of picked) {
+          const d = famDist(rgb, rgbOf.get(p));
+          if (d < bestD) { bestD = d; best = p; }
+        }
+        if (!colorBuckets.has(best)) colorBuckets.set(best, []);
+        colorBuckets.get(best).push(key);
+      }
+      newKeys = picked;
+    }
 
     const sameSet = newKeys.length === colorsUsedKeys.length &&
       newKeys.every((k, i) => k === colorsUsedKeys[i]);
