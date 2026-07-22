@@ -278,6 +278,13 @@
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
+    cursor: pointer;
+  }
+  /* Tap/click on a panel title collapses the panel to just its title bar
+     (mobile: reach the other panels without endless scrolling). !important
+     because some children carry JS-set inline display values. */
+  .panel.collapsed > :not(.panel-label) {
+    display: none !important;
   }
   .panel-body {
     position: relative;
@@ -749,6 +756,16 @@
   });
 
   // ---------- UI toggles ----------
+
+  // Collapsible panels: tap/click on a panel title toggles the panel down
+  // to just its title bar. Clicks on controls living inside the label
+  // (e.g. the Center button) don't toggle.
+  document.querySelectorAll('.panel > .panel-label').forEach((label) => {
+    label.addEventListener('click', (e) => {
+      if (e.target.closest('button, input')) return;
+      label.parentElement.classList.toggle('collapsed');
+    });
+  });
 
   bgToggle.addEventListener('change', () => {
     tolWrap.style.display = bgToggle.checked ? 'inline-flex' : 'none';
