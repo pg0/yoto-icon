@@ -607,7 +607,7 @@
 
   <div class="palette-strip">
     <h2 class="colormap-heading">
-      <span>Output color map</span>
+      <span>Output color map<span id="colorMapCount"></span></span>
       <span class="colormap-controls">
         <div class="segmented" id="colorsSegmented">
           <button type="button" class="segment active" data-colors="off">off</button>
@@ -1796,9 +1796,11 @@
   // open native color-picker popup isn't torn down mid-drag by its own
   // 'input' event.
   function updateColorsUsedSwatches(rawImageData) {
+    const countEl = document.getElementById('colorMapCount');
     if (!rawImageData) {
       colorsUsedEl.innerHTML = '';
       colorsUsedKeys = [];
+      countEl.textContent = '';
       return;
     }
 
@@ -1809,6 +1811,7 @@
       const key = data[i] + ',' + data[i + 1] + ',' + data[i + 2];
       counts.set(key, (counts.get(key) || 0) + 1);
     }
+    countEl.textContent = ' (' + counts.size + (counts.size === 1 ? ' color)' : ' colors)');
     const newKeys = Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 32)
