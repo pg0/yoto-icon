@@ -273,6 +273,11 @@
     letter-spacing: 0.6px;
     color: var(--text-dim);
     border-bottom: 1px solid var(--panel-border);
+    /* mobile: double-tap on the label must not trigger browser double-tap
+       zoom or text selection (looked like the panel "collapsing") */
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
   }
   .panel-body {
     position: relative;
@@ -1215,20 +1220,50 @@
   // pointer moves outside its bounds, so listeners can live on the canvas
   // itself instead of document.
 
+  // Pinch zoom (mobile): all active pointers on the crop canvas are
+  // tracked by id. Two fingers down switches from pan to pinch - zoom
+  // scales by current/initial finger distance off the zoom at pinch start,
+  // through the same setZoom (snap + clamp) as slider/wheel. Lifting
+  // either finger ends the pinch; panning needs a fresh touch so the crop
+  // doesn't jump to the leftover finger's stale drag baseline.
+  const activePointers = new Map();
+  let pinchStartDist = 0;
+  let pinchStartZoom = 1;
+
+  function pointerDist() {
+    const [a, b] = [...activePointers.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+  }
+
   leftCanvas.addEventListener('pointerdown', (e) => {
     if (!sourceImage) return;
-    isDragging = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    dragStartOffsetX = cropOffsetX;
-    dragStartOffsetY = cropOffsetY;
-    leftCanvas.style.cursor = 'grabbing';
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activePointers.size === 2) {
+      isDragging = false; // pan -> pinch
+      pinchStartDist = pointerDist();
+      pinchStartZoom = zoom;
+    } else if (activePointers.size === 1) {
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      dragStartOffsetX = cropOffsetX;
+      dragStartOffsetY = cropOffsetY;
+      leftCanvas.style.cursor = 'grabbing';
+    }
     try { leftCanvas.setPointerCapture(e.pointerId); } catch (_) {}
     e.preventDefault();
   });
 
   leftCanvas.addEventListener('pointermove', (e) => {
-    if (!isDragging || !sourceImage) return;
+    if (!sourceImage) return;
+    if (activePointers.has(e.pointerId)) {
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (activePointers.size >= 2) {
+      setZoom(pinchStartZoom * (pointerDist() / pinchStartDist));
+      return;
+    }
+    if (!isDragging) return;
     const rect = leftCanvas.getBoundingClientRect();
     const { cropSize, baseSx, baseSy } = getCropSlack(sourceImage, zoom);
     const scaleX = rect.width > 0 ? cropSize / rect.width : 1;
@@ -1249,6 +1284,7 @@
   });
 
   function endDrag(e) {
+    if (e) activePointers.delete(e.pointerId);
     if (isDragging) {
       isDragging = false;
       if (sourceImage) leftCanvas.style.cursor = 'grab';
