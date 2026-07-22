@@ -611,12 +611,39 @@
 
   // ---------- hand-paint ----------
 
-  function setActiveBrush(name) {
-    activeBrush = (activeBrush === name) ? null : name;
+  // Simple monochrome pencil glyph (white fill, black outline so it reads on
+  // both light and dark cells), tip at the bottom-left, hotspot pinned to
+  // the tip via the "1 15" cursor offset. No standard CSS pencil cursor
+  // exists, so this is an inline SVG data-URI; 'crosshair' is the fallback.
+  const PENCIL_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'>" +
+    "<polygon points='1,15 5,11 13,3 15,5 7,13' fill='white' stroke='black' stroke-width='1' stroke-linejoin='round'/>" +
+    "<polygon points='1,15 5,11 3,13' fill='black'/>" +
+    "</svg>";
+  const PENCIL_CURSOR = 'url("data:image/svg+xml,' + encodeURIComponent(PENCIL_SVG) + '") 1 15, crosshair';
+
+  function applyActiveBrush() {
     for (const [btn, n] of [[brushBlack, 'black'], [brushWhite, 'white'], [brushColor, 'color'], [brushEraser, 'eraser']]) {
       btn.classList.toggle('active', activeBrush === n);
     }
-    rightCanvas.style.cursor = activeBrush ? 'crosshair' : 'default';
+    rightCanvas.style.cursor = activeBrush ? PENCIL_CURSOR : 'default';
+  }
+
+  // Toggling version for the plain swatch buttons: clicking the already-
+  // active brush deselects it (no brush).
+  function setActiveBrush(name) {
+    activeBrush = (activeBrush === name) ? null : name;
+    applyActiveBrush();
+  }
+
+  // Non-toggling version, always activates (never turns off): needed for
+  // the Custom color input, whose 'click' (opening the native picker) and
+  // 'input' (confirming a color) events aren't guaranteed to fire exactly
+  // once per interaction - with the toggling version, a second fire could
+  // immediately flip the brush back off right after activating it, which
+  // is exactly the "picks a color but then doesn't paint" bug.
+  function activateBrush(name) {
+    activeBrush = name;
+    applyActiveBrush();
   }
 
   brushBlack.addEventListener('click', () => setActiveBrush('black'));
@@ -624,13 +651,20 @@
   brushEraser.addEventListener('click', () => setActiveBrush('eraser'));
 
   // The color input sits invisibly on top of the brushColor swatch button
-  // (see .brush-swatch-wrap CSS) so a single click both opens the native
-  // picker and activates the brush; the swatch's own click never fires
-  // once the input is layered above it.
+  // (see .brush-swatch-wrap CSS) so interacting with it both opens the
+  // native picker and activates the brush; the swatch's own click never
+  // fires once the input is layered above it. Activate on 'pointerdown' -
+  // it fires before the native picker even opens, so a plain click (picker
+  // opened and closed with no color change, or the picker never actually
+  // opening in some browsers) still activates the brush immediately with
+  // whatever color is already showing. 'input' keeps it activated live
+  // while the user is actively picking a new color.
   brushColor.style.background = brushColorInput.value;
-  brushColorInput.addEventListener('click', () => setActiveBrush('color'));
+  brushColorInput.addEventListener('pointerdown', () => activateBrush('color'));
+  brushColorInput.addEventListener('click', () => activateBrush('color'));
   brushColorInput.addEventListener('input', () => {
     brushColor.style.background = brushColorInput.value;
+    activateBrush('color');
   });
 
   function pushUndoSnapshot() {
@@ -698,7 +732,7 @@
     if (!sourceImage || !activeBrush) return;
     pushUndoSnapshot(); // once per stroke, before this stroke's first change
     isPainting = true;
-    rightCanvas.setPointerCapture(e.pointerId);
+    try { rightCanvas.setPointerCapture(e.pointerId); } catch (_) {}
     paintAt(e.clientX, e.clientY);
     e.preventDefault();
   });
@@ -885,7 +919,7 @@
     dragStartOffsetX = cropOffsetX;
     dragStartOffsetY = cropOffsetY;
     leftCanvas.style.cursor = 'grabbing';
-    leftCanvas.setPointerCapture(e.pointerId);
+    try { leftCanvas.setPointerCapture(e.pointerId); } catch (_) {}
     e.preventDefault();
   });
 
