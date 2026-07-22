@@ -661,7 +661,30 @@
   // while the user is actively picking a new color.
   brushColor.style.background = brushColorInput.value;
   brushColorInput.addEventListener('pointerdown', () => activateBrush('color'));
-  brushColorInput.addEventListener('click', () => activateBrush('color'));
+
+  // Prefer the EyeDropper API: the native color-input dialog covers the
+  // output panel, so it can't be used to pick a color off the output image
+  // itself. EyeDropper lets the user sample any on-screen pixel, including
+  // the output canvas. Where it's unsupported (Firefox/Safari), fall back
+  // to letting the native color-input dialog open as before.
+  brushColorInput.addEventListener('click', (e) => {
+    activateBrush('color');
+    if (!window.EyeDropper) return; // fallback: let the native dialog open
+    e.preventDefault();
+    new EyeDropper().open()
+      .then((result) => {
+        brushColorInput.value = result.sRGBHex;
+        brushColor.style.background = result.sRGBHex;
+        activateBrush('color');
+      })
+      .catch((err) => {
+        // AbortError = user pressed Esc; brush stays active with the
+        // previous color. Ignore silently either way.
+      });
+  });
+
+  // Fallback path (no EyeDropper support): native dialog's own color
+  // changes still update the swatch and keep the brush active live.
   brushColorInput.addEventListener('input', () => {
     brushColor.style.background = brushColorInput.value;
     activateBrush('color');
@@ -1402,6 +1425,9 @@
         '<span class="pct">' + pct + '%</span>';
       el.addEventListener('click', () => {
         navigator.clipboard.writeText(hex).then(() => showToast('Copied ' + hex));
+        brushColorInput.value = hex;
+        brushColor.style.background = hex;
+        activateBrush('color');
       });
       swatchesEl.appendChild(el);
     }
