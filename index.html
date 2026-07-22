@@ -610,13 +610,14 @@
       <span>Output color map<span id="colorMapCount"></span></span>
       <span class="colormap-controls">
         <div class="segmented" id="colorsSegmented">
-          <button type="button" class="segment active" data-colors="off">off</button>
           <button type="button" class="segment" data-colors="4">4</button>
           <button type="button" class="segment" data-colors="8">8</button>
           <button type="button" class="segment" data-colors="16">16</button>
           <button type="button" class="segment" data-colors="32">32</button>
           <button type="button" class="segment" data-colors="64">64</button>
           <button type="button" class="segment" data-colors="128">128</button>
+          <!-- "256" = no reduction (a 16x16 icon can't exceed 256 colors); internal value stays 'off' -->
+          <button type="button" class="segment active" data-colors="off">256</button>
         </div>
         <label><input type="checkbox" id="ditherToggle"> Dither</label>
         <button id="resetColorsBtn" type="button" class="secondary center-btn">Reset colors</button>
