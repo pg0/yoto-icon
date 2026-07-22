@@ -26,6 +26,13 @@ The Yoto player renders icons at 16x16 physical pixels. The tool processes and e
 
 Open `index.html` in any modern browser. Everything runs locally; no image ever leaves your machine.
 
+## Teaser / currently testing
+- **Text**: add Text and Symbols easy
+- **Masks**: use paint as image mask
+  
+<img src="screenshots/teaser_text.png" height="300" alt="Text feature"> <img src="screenshots/teaser_mask.png" height="300" alt="Mask feature">
+
+
 ## License
 
 MIT
