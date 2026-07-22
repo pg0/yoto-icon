@@ -115,6 +115,10 @@
     font-size: 10px;
     border-radius: 4px;
   }
+  .center-btn.active {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
   .segmented {
     display: inline-flex;
     border: 1px solid var(--panel-border);
@@ -146,6 +150,15 @@
     gap: 6px;
     padding: 6px 12px;
     border-bottom: 1px solid var(--panel-border);
+  }
+  .grid-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: pointer;
+    margin-left: auto;
   }
   .brush-swatch {
     width: 22px;
@@ -196,6 +209,17 @@
     cursor: pointer;
     padding: 0;
     border: none;
+  }
+  .brush-eyedropper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    color: var(--text-dim);
+  }
+  .brush-eyedropper:hover {
+    color: var(--accent);
+    border-color: var(--panel-border);
   }
   .file-controls input[type="text"] {
     background: var(--bg);
@@ -270,8 +294,25 @@
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
-    display: none;
     touch-action: none;
+  }
+  .grid-overlay {
+    position: absolute;
+    top: 5%;
+    left: 5%;
+    width: 90%;
+    height: 90%;
+    box-sizing: border-box;
+    pointer-events: none;
+    display: none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+    background-size: calc(100% / 16) calc(100% / 16);
+  }
+  .grid-overlay.on {
+    display: block;
   }
   .drop-hint {
     color: var(--text-dim);
@@ -441,7 +482,7 @@
       <label class="file-btn" for="fileInput">Choose file</label>
       <input type="file" id="fileInput" accept="image/*">
       <input type="text" id="filenameInput" placeholder="filename">
-      <button id="exportBtn" disabled>.png</button>
+      <button id="exportBtn">.png</button>
     </div>
   </div>
 
@@ -466,13 +507,22 @@
           <button id="brushColor" type="button" class="brush-swatch" title="Custom"></button>
           <input type="color" id="brushColorInput" value="#ff0000" title="Custom">
         </span>
+        <button id="brushEyedropper" type="button" class="brush-swatch brush-eyedropper" title="Pick from screen">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+            <path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5l-7.147 7.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.708L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708l-2-2zM2 12.707l7-7L10.293 7l-7 7H2v-1.293z"/>
+          </svg>
+        </button>
         <button id="brushEraser" type="button" class="brush-swatch brush-eraser" title="Eraser"></button>
         <button id="paintUndoBtn" type="button" class="secondary center-btn" disabled>Undo</button>
         <button id="paintClearBtn" type="button" class="secondary center-btn">Clear</button>
+        <button id="paintCanvasBtn" type="button" class="secondary center-btn" title="Fill/clear the whole 16x16 with white">Canvas</button>
+        <label class="grid-toggle" title="Show pixel grid (display only, not exported)">
+          <input type="checkbox" id="gridToggle"> Grid
+        </label>
       </div>
       <div class="panel-body">
-        <div class="drop-hint" id="outHint">No image yet</div>
         <canvas id="rightCanvas" width="16" height="16"></canvas>
+        <div class="grid-overlay" id="gridOverlay"></div>
       </div>
     </div>
     <div class="panel">
@@ -524,16 +574,19 @@
   const leftBody = document.getElementById('leftBody');
   const centerBtn = document.getElementById('centerBtn');
   const dropHint = document.getElementById('dropHint');
-  const outHint = document.getElementById('outHint');
   const leftCanvas = document.getElementById('leftCanvas');
   const rightCanvas = document.getElementById('rightCanvas');
+  const gridOverlay = document.getElementById('gridOverlay');
+  const gridToggle = document.getElementById('gridToggle');
   const brushBlack = document.getElementById('brushBlack');
   const brushWhite = document.getElementById('brushWhite');
   const brushColor = document.getElementById('brushColor');
   const brushColorInput = document.getElementById('brushColorInput');
+  const brushEyedropper = document.getElementById('brushEyedropper');
   const brushEraser = document.getElementById('brushEraser');
   const paintUndoBtn = document.getElementById('paintUndoBtn');
   const paintClearBtn = document.getElementById('paintClearBtn');
+  const paintCanvasBtn = document.getElementById('paintCanvasBtn');
   const swatchesEl = document.getElementById('swatches');
   const exportBtn = document.getElementById('exportBtn');
   const toast = document.getElementById('toast');
@@ -548,7 +601,9 @@
   const yotoPhoto = new Image();
   yotoPhoto.onload = () => {
     yotoPhotoLoaded = true;
-    if (sourceImage) renderYotoPreview();
+    yotoHint.style.display = 'none';
+    yotoCanvas.style.display = 'block';
+    renderYotoPreview();
   };
   yotoPhoto.src = './yoto-mini-front.png';
 
@@ -568,6 +623,7 @@
   let paintLayer = new Array(FINAL_SIZE * FINAL_SIZE).fill(null);
   let activeBrush = null; // 'black' | 'white' | 'color' | 'eraser' | null
   let isPainting = false;
+  let canvasIsWhite = false; // "Canvas" toggle state: all-white vs all-cleared
   const UNDO_LIMIT = 50;
   let undoStack = []; // snapshots (256-entry array copies) of paintLayer
 
@@ -658,44 +714,42 @@
   brushEraser.addEventListener('click', () => setActiveBrush('eraser'));
 
   // The color input sits invisibly on top of the brushColor swatch button
-  // (see .brush-swatch-wrap CSS) so interacting with it both opens the
-  // native picker and activates the brush; the swatch's own click never
-  // fires once the input is layered above it. Activate on 'pointerdown' -
-  // it fires before the native picker even opens, so a plain click (picker
-  // opened and closed with no color change, or the picker never actually
-  // opening in some browsers) still activates the brush immediately with
-  // whatever color is already showing. 'input' keeps it activated live
-  // while the user is actively picking a new color.
+  // (see .brush-swatch-wrap CSS) so a single click both opens the native
+  // picker (RGB/HEX inputs and all) and activates the brush; the swatch's
+  // own click never fires once the input is layered above it. Activate on
+  // 'pointerdown' too - it fires before the native picker even opens, so a
+  // plain click (picker opened and closed with no color change, or not
+  // opening at all in some browsers) still activates the brush immediately
+  // with whatever color is already showing.
   brushColor.style.background = brushColorInput.value;
   brushColorInput.addEventListener('pointerdown', () => activateBrush('color'));
-
-  // Prefer the EyeDropper API: the native color-input dialog covers the
-  // output panel, so it can't be used to pick a color off the output image
-  // itself. EyeDropper lets the user sample any on-screen pixel, including
-  // the output canvas. Where it's unsupported (Firefox/Safari), fall back
-  // to letting the native color-input dialog open as before.
-  brushColorInput.addEventListener('click', (e) => {
-    activateBrush('color');
-    if (!window.EyeDropper) return; // fallback: let the native dialog open
-    e.preventDefault();
-    new EyeDropper().open()
-      .then((result) => {
-        brushColorInput.value = result.sRGBHex;
-        brushColor.style.background = result.sRGBHex;
-        activateBrush('color');
-      })
-      .catch((err) => {
-        // AbortError = user pressed Esc; brush stays active with the
-        // previous color. Ignore silently either way.
-      });
-  });
-
-  // Fallback path (no EyeDropper support): native dialog's own color
-  // changes still update the swatch and keep the brush active live.
+  brushColorInput.addEventListener('click', () => activateBrush('color'));
   brushColorInput.addEventListener('input', () => {
     brushColor.style.background = brushColorInput.value;
     activateBrush('color');
   });
+
+  // Separate eyedropper button: the native color-input dialog above covers
+  // the output panel, so it can't be used to sample a color off the output
+  // image itself. This button uses the EyeDropper API instead, which can
+  // sample any on-screen pixel, including the output canvas. Only shown
+  // where the API is supported.
+  if (window.EyeDropper) {
+    brushEyedropper.addEventListener('click', () => {
+      activateBrush('color');
+      new EyeDropper().open()
+        .then((result) => {
+          brushColorInput.value = result.sRGBHex;
+          brushColor.style.background = result.sRGBHex;
+        })
+        .catch((err) => {
+          // AbortError = user pressed Esc; brush stays active with the
+          // previous color. Ignore silently either way.
+        });
+    });
+  } else {
+    brushEyedropper.style.display = 'none';
+  }
 
   function pushUndoSnapshot() {
     undoStack.push(paintLayer.slice());
@@ -725,7 +779,26 @@
   paintClearBtn.addEventListener('click', () => {
     pushUndoSnapshot();
     paintLayer.fill(null);
+    canvasIsWhite = false;
+    paintCanvasBtn.classList.remove('active');
     processAll();
+  });
+
+  // "Canvas" toggle: fills or clears all 256 cells at once. Same undo
+  // participation as any other paint action (one snapshot per toggle).
+  paintCanvasBtn.addEventListener('click', () => {
+    pushUndoSnapshot();
+    canvasIsWhite = !canvasIsWhite;
+    paintLayer.fill(canvasIsWhite ? { r: 255, g: 255, b: 255 } : null);
+    paintCanvasBtn.classList.toggle('active', canvasIsWhite);
+    processAll();
+  });
+
+  // Grid overlay: display-only aid, never touches the actual pixel data -
+  // it's a separate absolutely-positioned layer over the canvas, not baked
+  // into export/palette/Yoto preview.
+  gridToggle.addEventListener('change', () => {
+    gridOverlay.classList.toggle('on', gridToggle.checked);
   });
 
   function brushValue() {
@@ -759,7 +832,9 @@
   // setPointerCapture keeps the stroke tracking this element even once the
   // pointer moves outside its bounds during a fast drag.
   rightCanvas.addEventListener('pointerdown', (e) => {
-    if (!sourceImage || !activeBrush) return;
+    // No sourceImage gate: painting works standalone from page load, before
+    // any image is ever loaded (see processAll's standalone branch).
+    if (!activeBrush) return;
     pushUndoSnapshot(); // once per stroke, before this stroke's first change
     isPainting = true;
     try { rightCanvas.setPointerCapture(e.pointerId); } catch (_) {}
@@ -827,6 +902,8 @@
       paintLayer.fill(null);
       undoStack = [];
       paintUndoBtn.disabled = true;
+      canvasIsWhite = false;
+      paintCanvasBtn.classList.remove('active');
 
       let base = forcedName;
       if (!base) {
@@ -837,7 +914,6 @@
 
       URL.revokeObjectURL(url);
       dropHint.style.display = 'none';
-      outHint.style.display = 'none';
       leftCanvas.style.display = 'block';
       rightCanvas.style.display = 'block';
       leftCanvas.style.cursor = 'grab';
@@ -1254,7 +1330,24 @@
   }
 
   function processAll() {
-    if (!sourceImage) return;
+    if (!sourceImage) {
+      // Standalone pixel-editor mode: no image loaded (yet). Skip the whole
+      // crop/bg-removal/pixelate/color-reduction pipeline - the output is
+      // just the hand-paint layer, with the same optional BG-color
+      // compositing as the real pipeline's last stage.
+      rightCtx.clearRect(0, 0, FINAL_SIZE, FINAL_SIZE);
+      applyPaintLayer();
+      if (bgColorToggle.checked) {
+        rightCtx.save();
+        rightCtx.globalCompositeOperation = 'destination-over';
+        rightCtx.fillStyle = bgColorInput.value;
+        rightCtx.fillRect(0, 0, FINAL_SIZE, FINAL_SIZE);
+        rightCtx.restore();
+      }
+      updateSwatches();
+      renderYotoPreview();
+      return;
+    }
 
     // 1. square crop
     const squareCanvas = centerCropSquare(sourceImage);
@@ -1443,7 +1536,9 @@
   // ---------- yoto box preview ----------
 
   function renderYotoPreview() {
-    if (!yotoPhotoLoaded || !sourceImage) return;
+    // No sourceImage gate: renders the (possibly empty/hand-painted) icon
+    // as soon as the mockup photo itself has loaded.
+    if (!yotoPhotoLoaded) return;
     yotoCtx.clearRect(0, 0, yotoCanvas.width, yotoCanvas.height);
     yotoCtx.drawImage(yotoPhoto, 0, 0);
     yotoCtx.imageSmoothingEnabled = false;
