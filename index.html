@@ -346,6 +346,30 @@
     font-weight: 600;
     margin: 0 0 8px;
   }
+  .colormap-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .colormap-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .colormap-controls label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
   .swatches {
     display: flex;
     flex-wrap: wrap;
@@ -466,22 +490,6 @@
     </div>
 
     <div class="control-group">
-      <label><input type="checkbox" id="pixelToggle"> Pixelate</label>
-      <span id="gridWrap" style="display:none; align-items:center; gap:6px;">
-        <span class="sub-value">Grid</span>
-        <select id="pixelGrid">
-          <option value="16" selected>16</option>
-          <option value="24">24</option>
-          <option value="32">32</option>
-          <option value="48">48</option>
-          <option value="64">64</option>
-          <option value="96">96</option>
-          <option value="128">128</option>
-        </select>
-      </span>
-    </div>
-
-    <div class="control-group">
       <span class="sub-value">Sampling</span>
       <div class="segmented" id="samplingSegmented">
         <button type="button" class="segment active" data-mode="smooth">Smooth</button>
@@ -489,18 +497,6 @@
         <button type="button" class="segment" data-mode="dominant">Dominant</button>
         <button type="button" class="segment" data-mode="median">Median</button>
       </div>
-    </div>
-
-    <div class="control-group">
-      <span class="sub-value">Colors</span>
-      <select id="colorReduce">
-        <option value="off" selected>off</option>
-        <option value="4">4</option>
-        <option value="8">8</option>
-        <option value="16">16</option>
-        <option value="32">32</option>
-      </select>
-      <label><input type="checkbox" id="ditherToggle"> Dither</label>
     </div>
 
     <div class="control-group">
@@ -577,7 +573,22 @@
   </div>
 
   <div class="palette-strip">
-    <h2>Colors used</h2>
+    <h2 class="colormap-heading">
+      <span>Output color map</span>
+      <span class="colormap-controls">
+        <div class="segmented" id="colorsSegmented">
+          <button type="button" class="segment active" data-colors="off">off</button>
+          <button type="button" class="segment" data-colors="4">4</button>
+          <button type="button" class="segment" data-colors="8">8</button>
+          <button type="button" class="segment" data-colors="16">16</button>
+          <button type="button" class="segment" data-colors="32">32</button>
+          <button type="button" class="segment" data-colors="64">64</button>
+          <button type="button" class="segment" data-colors="128">128</button>
+        </div>
+        <label><input type="checkbox" id="ditherToggle"> Dither</label>
+        <button id="resetColorsBtn" type="button" class="secondary center-btn">Reset colors</button>
+      </span>
+    </h2>
     <div class="swatches" id="colorsUsedSwatches"></div>
   </div>
 
@@ -588,7 +599,6 @@
 
 <script>
 (function () {
-  const MID_SIZE = 128;
   const FINAL_SIZE = 16;
   const MAX_WORK_SIZE = 512;
   const YOTO_PANEL = { x0: 198, x1: 335, y0: 197, y1: 335 };
@@ -600,11 +610,8 @@
   const tolWrap = document.getElementById('tolWrap');
   const bgTolerance = document.getElementById('bgTolerance');
   const bgToleranceVal = document.getElementById('bgToleranceVal');
-  const pixelToggle = document.getElementById('pixelToggle');
-  const gridWrap = document.getElementById('gridWrap');
-  const pixelGrid = document.getElementById('pixelGrid');
   const samplingSegmented = document.getElementById('samplingSegmented');
-  const colorReduce = document.getElementById('colorReduce');
+  const colorsSegmented = document.getElementById('colorsSegmented');
   const ditherToggle = document.getElementById('ditherToggle');
   const bgColorToggle = document.getElementById('bgColorToggle');
   const bgColorInput = document.getElementById('bgColorInput');
@@ -654,6 +661,7 @@
   let cropOffsetY = 0;
   let zoom = 1;
   let samplingMode = 'smooth'; // 'smooth' | 'nearest' | 'dominant' | 'median'
+  let colorsValue = 'off'; // 'off' | '4' | '8' | '16' | '32' | '64' | '128'
   let isDragging = false;
   let dragStartX = 0;
   let dragStartY = 0;
@@ -691,6 +699,13 @@
   // place rather than tearing down the DOM mid color-pick.
   let colorsUsedKeys = [];
 
+  // "Reset colors": drop every remap, rebuild the strip with the raw colors.
+  document.getElementById('resetColorsBtn').addEventListener('click', () => {
+    colorRemap.clear();
+    colorsUsedKeys = []; // force a full swatch rebuild on the next update
+    processAll();
+  });
+
   // ---------- UI toggles ----------
 
   bgToggle.addEventListener('change', () => {
@@ -701,12 +716,6 @@
     bgToleranceVal.textContent = bgTolerance.value;
     processAll();
   });
-  pixelToggle.addEventListener('change', () => {
-    gridWrap.style.display = pixelToggle.checked ? 'inline-flex' : 'none';
-    processAll();
-  });
-  pixelGrid.addEventListener('change', processAll);
-
   const samplingButtons = Array.from(samplingSegmented.querySelectorAll('.segment'));
   samplingButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -716,7 +725,15 @@
     });
   });
 
-  colorReduce.addEventListener('change', processAll);
+  const colorsButtons = Array.from(colorsSegmented.querySelectorAll('.segment'));
+  colorsButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      colorsValue = btn.dataset.colors;
+      colorsButtons.forEach((b) => b.classList.toggle('active', b === btn));
+      processAll();
+    });
+  });
+
   ditherToggle.addEventListener('change', processAll);
 
   bgColorToggle.addEventListener('change', () => {
@@ -1452,82 +1469,40 @@
     // normal photos (backing >= displayed size) keep smooth scaling.
     leftCanvas.style.imageRendering = (leftCanvas.width < leftCanvas.clientWidth) ? 'pixelated' : '';
 
-    // 3. downscale to the grid (pixelate on) or straight to the true size
-    // (pixelate off), honoring the sampling mode, then relay into the
-    // 128px internal intermediate canvas.
-    const midCanvas = document.createElement('canvas');
-    midCanvas.width = MID_SIZE;
-    midCanvas.height = MID_SIZE;
-    const midCtx = midCanvas.getContext('2d', { willReadFrequently: true });
-
-    const isPixelated = pixelToggle.checked;
+    // 3. downscale straight to the true 16x16 icon, in one step, honoring
+    // the selected Sampling mode - no intermediate canvas. Dominant/median
+    // are cell-based statistical downscales (cellSample); Smooth/Nearest
+    // are a single drawImage with imageSmoothingEnabled toggled.
     const cellMode = samplingMode === 'dominant' || samplingMode === 'median';
-
-    if (isPixelated) {
-      const N = parseInt(pixelGrid.value, 10);
-      const gridCanvas = document.createElement('canvas');
-      gridCanvas.width = N;
-      gridCanvas.height = N;
-      if (cellMode) {
-        const srcData = leftResult.getContext('2d').getImageData(0, 0, S, S);
-        gridCanvas.getContext('2d').putImageData(cellSample(srcData, N, samplingMode), 0, 0);
-      } else {
-        const gridCtx = gridCanvas.getContext('2d');
-        gridCtx.imageSmoothingEnabled = samplingMode === 'smooth';
-        gridCtx.drawImage(leftResult, 0, 0, S, S, 0, 0, N, N);
-      }
-      // relay the grid up to the 128 intermediate - always a faithful
-      // nearest upscale, never a second resampling pass
-      midCtx.imageSmoothingEnabled = false;
-      midCtx.drawImage(gridCanvas, 0, 0, N, N, 0, 0, MID_SIZE, MID_SIZE);
-    } else if (cellMode) {
-      // Sample straight to the true 16x16 grid - this IS the final pixel
-      // grid. Relay it up to the 128 canvas (nearest, exact 8x factor)
-      // purely so color reduction has its usual canvas to work on; no
-      // second statistical resampling happens.
+    rightCtx.clearRect(0, 0, FINAL_SIZE, FINAL_SIZE);
+    if (cellMode) {
       const srcData = leftResult.getContext('2d').getImageData(0, 0, S, S);
-      const sampledCanvas = document.createElement('canvas');
-      sampledCanvas.width = FINAL_SIZE;
-      sampledCanvas.height = FINAL_SIZE;
-      sampledCanvas.getContext('2d').putImageData(cellSample(srcData, FINAL_SIZE, samplingMode), 0, 0);
-      midCtx.imageSmoothingEnabled = false;
-      midCtx.drawImage(sampledCanvas, 0, 0, FINAL_SIZE, FINAL_SIZE, 0, 0, MID_SIZE, MID_SIZE);
+      rightCtx.putImageData(cellSample(srcData, FINAL_SIZE, samplingMode), 0, 0);
     } else {
-      midCtx.imageSmoothingEnabled = samplingMode === 'smooth';
-      midCtx.drawImage(leftResult, 0, 0, S, S, 0, 0, MID_SIZE, MID_SIZE);
+      rightCtx.imageSmoothingEnabled = samplingMode === 'smooth';
+      rightCtx.drawImage(leftResult, 0, 0, S, S, 0, 0, FINAL_SIZE, FINAL_SIZE);
     }
 
-    // 4. color reduction (still applied on the 128 intermediate)
-    const reduceVal = colorReduce.value;
+    // Pure sampled-input snapshot - straight off the downscale, before
+    // color reduction/dither/remap touch anything. This is what "Most-used
+    // colors" reads: changing Colors or Dither must never change that
+    // strip, only the actual output and "Output color map" do.
+    const preReductionImageData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
+
+    // 4. color reduction (+ optional dither) - runs on the TRUE 16x16
+    // stage, right after the downscale. Quantizing at the true output
+    // resolution is the only way "Colors=X" genuinely guarantees <=X
+    // unique colors in the final icon.
+    const reduceVal = colorsValue;
     if (reduceVal !== 'off') {
-      const imgData = midCtx.getImageData(0, 0, MID_SIZE, MID_SIZE);
+      const imgData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
       if (ditherToggle.checked) {
         applyColorReductionDither(imgData, parseInt(reduceVal, 10));
       } else {
         applyColorReduction(imgData, parseInt(reduceVal, 10));
       }
-      midCtx.putImageData(imgData, 0, 0);
+      rightCtx.putImageData(imgData, 0, 0);
     }
-
-    // 4b. optional background color - flatten the 128 intermediate onto a
-    // solid color now (destination-over: fill shows only through the
-    // still-transparent pixels) so the final downscale below blends clean
-    // opaque edges against that color instead of against transparency.
-    if (bgColorToggle.checked) {
-      midCtx.save();
-      midCtx.globalCompositeOperation = 'destination-over';
-      midCtx.fillStyle = bgColorInput.value;
-      midCtx.fillRect(0, 0, MID_SIZE, MID_SIZE);
-      midCtx.restore();
-    }
-
-    // 5. true output stage - downscale the 128 intermediate to the real
-    // 16x16 icon. Nearest whenever the grid is meant to stay crisp
-    // (pixelate on, or any non-smooth sampling mode) so exact
-    // sampled/quantized colors survive instead of blurring back together.
-    rightCtx.clearRect(0, 0, FINAL_SIZE, FINAL_SIZE);
-    rightCtx.imageSmoothingEnabled = !(isPixelated || samplingMode !== 'smooth');
-    rightCtx.drawImage(midCanvas, 0, 0, MID_SIZE, MID_SIZE, 0, 0, FINAL_SIZE, FINAL_SIZE);
 
     // Raw processed-image colors, pre-remap - this is the stable identity
     // the "Colors used" swatches are keyed on (see updateColorsUsedSwatches),
@@ -1536,26 +1511,16 @@
     // displays.
     const rawImageData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
 
-    // 5a. color remap - user edits from the "Colors used" swatches, applied
-    // directly on the processed 16x16 image: every pixel whose exact RGB
-    // matches a remapped original color is replaced with its target color.
-    // Runs after color reduction, before the canvasMode base override and
-    // before paint.
+    // 4a. color remap - user edits from the "Output color map" swatches,
+    // applied directly on the processed 16x16 image: every pixel whose
+    // exact RGB matches a remapped original color is replaced with its
+    // target color. Runs after color reduction, before the canvasMode base
+    // override and before paint.
     applyColorRemap(rightCtx);
-
-    // Snapshot the processed-image stage here - after sampling/color
-    // reduction and remap, before any canvasMode base override and before
-    // paint - so the "Most-used colors" palette can be sourced from the
-    // actual processed image instead of the blank/solid base once the base
-    // is overridden below. Used unconditionally (simpler, single code path)
-    // rather than only when overriding; the practical effect is that
-    // "Most-used colors" reflects the processed image + remap, not the
-    // hand-paint layer or BG color - a deliberate simplification.
-    const paletteSourceImageData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
 
     updateColorsUsedSwatches(rawImageData);
 
-    // 5b. canvas base-mode override - the "Canvas" toolbar button lets the
+    // 4b. canvas base-mode override - the "Canvas" toolbar button lets the
     // user ignore/hide the processed input image and paint on a blank or
     // solid base instead, without ever touching the paint layer itself.
     if (canvasMode === 'transparent') {
@@ -1572,8 +1537,7 @@
     // transparency. With BG color off, that hole is the final result.
     applyPaintLayer();
 
-    // 7. optional background color - the actual last stage, on both this
-    // 16x16 canvas and the 128 intermediate above (step 4b). Composited via
+    // 7. optional background color - the actual last stage. Composited via
     // destination-over so it only shows through transparency - original
     // cutout areas AND erased paint cells alike - never overwriting opaque
     // pixels.
@@ -1585,7 +1549,7 @@
       rightCtx.restore();
     }
 
-    updateSwatches(paletteSourceImageData);
+    updateSwatches(preReductionImageData);
     renderYotoPreview();
   }
 
@@ -1613,10 +1577,13 @@
   }
 
   // overrideImageData: when set, the palette is computed from this data
-  // instead of the current rightCanvas content - used so that, when
-  // canvasMode hides the processed image behind a blank/solid base, the
-  // palette can still reflect the actual image's colors (the "load an
-  // image purely as a color source, then paint from scratch" workflow).
+  // instead of the current rightCanvas content. In the normal sourceImage
+  // pipeline this is always the pure sampled-input snapshot taken right
+  // after the downscale, before color reduction/dither/remap/canvasMode/
+  // paint touch anything - so "Most-used colors" reflects only crop + bg
+  // removal + sampling mode, and never changes when Colors/Dither/Output
+  // color map/Canvas/paint change. In standalone mode (no override, no
+  // sourceImage) it falls back to reading the actual painted rightCanvas.
   function updateSwatches(overrideImageData) {
     const imgData = overrideImageData || rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
     const data = imgData.data;
