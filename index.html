@@ -1199,8 +1199,8 @@
     const ZOOM_STEP = 0.05;
     let snapped = Math.round(z / ZOOM_STEP) * ZOOM_STEP;
     snapped = Math.round(snapped * 100) / 100; // kill residual float noise
-    zoom = Math.max(0.25, Math.min(5, snapped));
-    zoomSlider.value = zoom.toFixed(2);
+    zoom = Math.max(0.25, snapped);
+    zoomSlider.value = Math.min(zoom, 5).toFixed(2); // slider caps at 5, wheel zoom doesn't
     zoomVal.textContent = formatZoom(zoom);
     if (sourceImage) {
       clampCropOffset();
