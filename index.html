@@ -1786,17 +1786,21 @@
       };
       colorRemap.set(key, target);
       // Bucket follow: every non-displayed color assigned to this swatch is
-      // shifted by the same delta (original rep -> target), clamped to
-      // 0-255. Delta instead of flat replacement so subtle shading inside
-      // the bucket survives the edit. Deltas are always computed from
-      // ORIGINAL raw colors, so repeated edits compose cleanly.
+      // shifted by the delta (original rep -> target) scaled by its follow
+      // weight (1 near the rep, fading to 0 with family distance - keeps
+      // edits local on gradient-heavy images), clamped to 0-255. Delta
+      // instead of flat replacement so subtle shading inside the bucket
+      // survives the edit. Deltas are always computed from ORIGINAL raw
+      // colors, so repeated edits compose cleanly.
       const [or, og, ob] = key.split(',').map(Number);
       const dr = target.r - or, dg = target.g - og, db = target.b - ob;
       const clamp = v => v < 0 ? 0 : v > 255 ? 255 : v;
-      for (const member of colorBuckets.get(key) || []) {
+      for (const { key: member, w } of colorBuckets.get(key) || []) {
         const [mr, mg, mb] = member.split(',').map(Number);
         colorRemap.set(member, {
-          r: clamp(mr + dr), g: clamp(mg + dg), b: clamp(mb + db)
+          r: clamp(Math.round(mr + dr * w)),
+          g: clamp(Math.round(mg + dg * w)),
+          b: clamp(Math.round(mb + db * w))
         });
       }
       chip.style.background = val;
@@ -1876,9 +1880,16 @@
           picked.push(key);
         }
       }
-      // Every non-displayed color joins its nearest family's bucket. No
+      // Every non-displayed color joins its nearest family's bucket,
+      // stored with a follow WEIGHT: 1 at the rep, fading linearly to 0 at
+      // 2x the family threshold. On smooth-gradient images (color
+      // spectrums) "nearest rep" spans huge regions - without the falloff,
+      // one edit would visibly drag half the picture (and clamp far shades
+      // to flat black). With it, edits stay local: true family members
+      // follow strongly, distant relatives barely or not at all. No
       // frequency backfill of leftover slots: a backfilled in-family swatch
       // would sit outside its family's bucket and stop following edits.
+      const FOLLOW_R = FAMILY_T * 2;
       for (const key of sorted) {
         if (picked.includes(key)) continue;
         const rgb = rgbOf.get(key);
@@ -1887,8 +1898,10 @@
           const d = famDist(rgb, rgbOf.get(p));
           if (d < bestD) { bestD = d; best = p; }
         }
+        const w = Math.max(0, 1 - bestD / FOLLOW_R);
+        if (w <= 0) continue;
         if (!colorBuckets.has(best)) colorBuckets.set(best, []);
-        colorBuckets.get(best).push(key);
+        colorBuckets.get(best).push({ key, w });
       }
       newKeys = picked;
     }
