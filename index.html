@@ -1293,6 +1293,17 @@
     rightCtx.imageSmoothingEnabled = !(isPixelated || samplingMode !== 'smooth');
     rightCtx.drawImage(midCanvas, 0, 0, MID_SIZE, MID_SIZE, 0, 0, FINAL_SIZE, FINAL_SIZE);
 
+    // 6. hand-paint overlay - applied BEFORE the background color, not
+    // after: erase punches a real transparent hole here, and the
+    // background color (next, if on) sits underneath it like any other
+    // transparency. With BG color off, that hole is the final result.
+    applyPaintLayer();
+
+    // 7. optional background color - the actual last stage, on both this
+    // 16x16 canvas and the 128 intermediate above (step 4b). Composited via
+    // destination-over so it only shows through transparency - original
+    // cutout areas AND erased paint cells alike - never overwriting opaque
+    // pixels.
     if (bgColorToggle.checked) {
       rightCtx.save();
       rightCtx.globalCompositeOperation = 'destination-over';
@@ -1300,11 +1311,6 @@
       rightCtx.fillRect(0, 0, FINAL_SIZE, FINAL_SIZE);
       rightCtx.restore();
     }
-
-    // 6. hand-paint overlay - always the very last stage, on top of
-    // everything including the background color, so painted/erased cells
-    // are the final word on that pixel.
-    applyPaintLayer();
 
     updateSwatches();
     renderYotoPreview();
