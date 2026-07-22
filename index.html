@@ -25,14 +25,18 @@
     padding: 14px 20px;
     border-bottom: 1px solid var(--panel-border);
   }
+  /* 940px = main's 980px minus its 2x20px padding (border-box), so the
+     header text lines up with the content column below */
   header h1 {
-    margin: 0;
+    max-width: 940px;
+    margin: 0 auto;
     font-size: 17px;
     font-weight: 600;
     letter-spacing: 0.2px;
   }
   header p {
-    margin: 4px 0 0;
+    max-width: 940px;
+    margin: 4px auto 0;
     color: var(--text-dim);
     font-size: 12px;
   }
