@@ -171,6 +171,12 @@
     background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
     background-color: #ccc;
   }
+  .brush-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--panel-border);
+    margin: 0 2px;
+  }
   .brush-swatch-wrap {
     position: relative;
     width: 22px;
@@ -455,6 +461,7 @@
       <div class="paint-toolbar">
         <button id="brushBlack" type="button" class="brush-swatch brush-black" title="Black"></button>
         <button id="brushWhite" type="button" class="brush-swatch brush-white" title="White"></button>
+        <span class="brush-divider"></span>
         <span class="brush-swatch-wrap">
           <button id="brushColor" type="button" class="brush-swatch" title="Custom"></button>
           <input type="color" id="brushColorInput" value="#ff0000" title="Custom">
