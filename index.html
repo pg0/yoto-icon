@@ -1881,6 +1881,11 @@
     return n;
   }
 
+  // Enter in the filename field = clicking .png
+  filenameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !exportBtn.disabled) exportBtn.click();
+  });
+
   exportBtn.addEventListener('click', () => {
     rightCanvas.toBlob((blob) => {
       if (!blob) return;
