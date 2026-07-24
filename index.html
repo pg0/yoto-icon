@@ -3399,19 +3399,15 @@
     // as soon as the mockup photo itself has loaded.
     if (!yotoPhotoLoaded) return;
     yotoCtx.drawImage(yotoPhoto, 0, 0);
-    // Fill the Mini's dark screen (measured bounds), small inset, clipped to the
-    // screen's rounded corners so full-bleed icons don't spill onto the body.
-    const mInset = 2;
+    // Fill the Mini's dark screen (measured bounds) with a small inset. The LED
+    // matrix is a square grid, so no rounded clip - the inset keeps the square
+    // clear of the screen's rounded corners.
+    const mInset = 14;
     const mx = YOTO_PANEL.x0 + mInset, my = YOTO_PANEL.y0 + mInset;
     const mw = (YOTO_PANEL.x1 - YOTO_PANEL.x0) - 2 * mInset;
     const mh = (YOTO_PANEL.y1 - YOTO_PANEL.y0) - 2 * mInset;
-    yotoCtx.save();
-    yotoCtx.beginPath();
-    yotoCtx.roundRect(mx, my, mw, mh, 15);
-    yotoCtx.clip();
     yotoCtx.imageSmoothingEnabled = false;
     yotoCtx.drawImage(rightCanvas, 0, 0, FINAL_SIZE, FINAL_SIZE, mx, my, mw, mh);
-    yotoCtx.restore();
   }
 
   // Render the 16x16 icon onto the Player's screen as larger, diffused glowing
