@@ -11,6 +11,7 @@ Browser tool to turn any image into a 16x16 PNG icon for the [Yoto player](https
 - **Background removal**: corner-seeded flood fill with tolerance slider
 - **Pixelate**: grid sizes 16-128
 - **Sampling modes**: Smooth (area average), Nearest, Dominant (most frequent color per cell), Median
+- **Adjust**: contrast and vibrance sliders on the loaded image (leave paint and inserted emoji untouched)
 - **Color reduction**: median-cut quantization to 4/8/16/32 colors, optional Floyd-Steinberg dithering
 - **Background color**: optional solid fill behind the icon
 - **Paint**: pencil and bucket-fill tools; black / white / custom color / eraser (transparent hole) / rubber (restore image) brushes on the 16x16 grid, undo (Ctrl+Z), clear
@@ -31,16 +32,6 @@ The Yoto player renders icons at 16x16 physical pixels. The tool processes and e
 ## Usage
 
 Open `index.html` in any modern browser. Everything runs locally; no image ever leaves your machine.
-
-## Teaser / currently testing
-- **Text**: add Text and Symbols easy
-
-<img src="screenshots/teaser_text.png" height="250" alt="Text feature"> 
-
-- **Masks**: use paint as image mask
-
-<img src="screenshots/teaser_mask.png" height="250" alt="Mask feature">
-
 
 ## License
 
