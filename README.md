@@ -13,7 +13,9 @@ Browser tool to turn any image into a 16x16 PNG icon for the [Yoto player](https
 - **Sampling modes**: Smooth (area average), Nearest, Dominant (most frequent color per cell), Median
 - **Color reduction**: median-cut quantization to 4/8/16/32 colors, optional Floyd-Steinberg dithering
 - **Background color**: optional solid fill behind the icon
-- **Paint**: black / white / custom color / eraser brushes on the 16x16 grid, undo (Ctrl+Z), clear
+- **Paint**: pencil and bucket-fill tools; black / white / custom color / eraser (transparent hole) / rubber (restore image) brushes on the 16x16 grid, undo (Ctrl+Z), clear
+- **Text**: stamp pixel text in three sizes (Tom Thumb 3x6, classic 5x7 dot-matrix, or system-font raster at 16px), with a special-character palette (hearts, stars, dots, diamonds, smileys) and live hover preview
+- **Mask**: use the painted area as a stencil (keep) or cutout (cut) of the image instead of drawing color
 - **Live preview**: original | 16x16 output | mockup on a Yoto Mini photo
 - **Palette**: most-used colors with hex + share, click to copy
 - **Export**: true 16x16 PNG with transparency, custom filename

@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Yoto Icon Maker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -188,6 +189,9 @@
     background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
     background-color: #ccc;
   }
+  .brush-unpaint {
+    background: linear-gradient(135deg, #e88 0 45%, #eee 45% 100%);
+  }
   .brush-divider {
     width: 1px;
     height: 18px;
@@ -245,6 +249,48 @@
     background-color: var(--accent);
     color: var(--accent-text);
   }
+  .text-input {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 5px;
+    padding: 3px 7px;
+    font-size: 12px;
+    width: 76px;
+  }
+  .text-size-seg .segment {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+  /* Special-character palette: full-width row that wraps below the
+     toolbar line while open. */
+  .char-pop {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    padding: 4px 0 2px;
+  }
+  .char-pop button {
+    min-width: 24px;
+    height: 22px;
+    padding: 0 5px;
+    border-radius: 4px;
+    border: 1px solid var(--panel-border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .char-pop button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .char-pop button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
   .file-controls input[type="text"] {
     background: var(--bg);
     color: var(--text);
@@ -282,13 +328,17 @@
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
-    cursor: pointer;
   }
-  /* Tap/click on a panel title collapses the panel to just its title bar
-     (mobile: reach the other panels without endless scrolling). !important
-     because some children carry JS-set inline display values. */
-  .panel.collapsed > :not(.panel-label) {
-    display: none !important;
+  /* Tap on a panel title collapses the panel to just its title bar - so the
+     other panels are reachable without endless scrolling. Mobile-only (same
+     breakpoint as the JS toggle guard): on desktop everything is visible at
+     once, so a title click stays inert. !important because some children
+     carry JS-set inline display values. */
+  @media (max-width: 900px) {
+    .panel-label { cursor: pointer; }
+    .panel.collapsed > :not(.panel-label) {
+      display: none !important;
+    }
   }
   .panel-body {
     position: relative;
@@ -580,6 +630,23 @@
             <circle cx="13.5" cy="12.5" r="1.3" fill="currentColor" stroke="none"/>
           </svg>
         </button>
+        <button id="toolText" type="button" class="tool-btn" title="Pixel text (3x5 font)">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+            <path d="M2 2h12v3h-2V4H9v9h2v2H5v-2h2V4H4v1H2V2z"/>
+          </svg>
+        </button>
+        <input type="text" id="textInput" class="text-input" placeholder="Text" maxlength="16" spellcheck="false" style="display:none">
+        <button id="textCharsBtn" type="button" class="tool-btn" title="Special characters" style="display:none">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+            <path d="M8 1l1.8 4.6L14.5 6l-3.6 3 1.1 4.7L8 11.2 4 13.7 5.1 9 1.5 6l4.7-.4z"/>
+          </svg>
+        </button>
+        <div class="segmented text-size-seg" id="textSizeSeg" style="display:none">
+          <button type="button" class="segment active" data-size="1" title="Tom Thumb 3x5 - 4 chars/line">S</button>
+          <button type="button" class="segment" data-size="2" title="Dot matrix 5x7 - 2 chars/line">M</button>
+          <button type="button" class="segment" data-size="3" title="System font, 16px - 1-2 chars">L</button>
+        </div>
+        <div class="char-pop" id="textCharsPop" style="display:none"></div>
         <span class="brush-divider"></span>
         <button id="brushBlack" type="button" class="brush-swatch brush-black" title="Black"></button>
         <button id="brushWhite" type="button" class="brush-swatch brush-white" title="White"></button>
@@ -593,9 +660,11 @@
             <path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5l-7.147 7.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.708L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708l-2-2zM2 12.707l7-7L10.293 7l-7 7H2v-1.293z"/>
           </svg>
         </button>
-        <button id="brushEraser" type="button" class="brush-swatch brush-eraser" title="Eraser"></button>
+        <button id="brushEraser" type="button" class="brush-swatch brush-eraser" title="Eraser (transparent hole)"></button>
+        <button id="brushUnpaint" type="button" class="brush-swatch brush-unpaint" title="Rubber: remove paint, restore image"></button>
         <button id="paintUndoBtn" type="button" class="secondary center-btn" disabled>Undo</button>
         <button id="paintClearBtn" type="button" class="secondary center-btn">Clear</button>
+        <button id="maskBtn" type="button" class="secondary center-btn" title="Paint as mask: off (paint draws normally)">Mask</button>
         <button id="paintCanvasBtn" type="button" class="secondary center-btn" title="Canvas base: image (click to cycle to transparent/white/black)">Canvas</button>
         <label class="grid-toggle" title="Show pixel grid (display only, not exported)">
           <input type="checkbox" id="gridToggle" checked> Grid
@@ -678,12 +747,63 @@
   const gridToggle = document.getElementById('gridToggle');
   const toolPencil = document.getElementById('toolPencil');
   const toolBucket = document.getElementById('toolBucket');
+  const toolText = document.getElementById('toolText');
+  const textInput = document.getElementById('textInput');
+  const textSizeSeg = document.getElementById('textSizeSeg');
+  let textSize = 1; // 1x/2x/3x integer scale for the pixel font
+  textSizeSeg.querySelectorAll('.segment').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      textSize = parseInt(btn.dataset.size, 10);
+      textSizeSeg.querySelectorAll('.segment').forEach((b) => b.classList.toggle('active', b === btn));
+    });
+  });
+
+  // Special-character palette: star button toggles a wrap-row of insert
+  // buttons below the toolbar. Multi-char entries (smileys) insert as a
+  // whole; everything respects the input's maxlength.
+  const textCharsBtn = document.getElementById('textCharsBtn');
+  const textCharsPop = document.getElementById('textCharsPop');
+  // Clicking a palette entry ARMS it as the stamp (ghost + click place it),
+  // it is never typed into the text input. Clicking the armed entry again
+  // disarms; typing in the input also disarms and takes back over.
+  let stampOverride = null;
+  // Only entries you can't just type: symbols + smiley shortcuts. Plain
+  // ASCII (!?.:+ etc.) is typed directly into the text input.
+  const SPECIAL_CHARS = [
+    '♥', '★', '●', '○', '◆', '■',
+    ':)', ';)', ':D', ':('
+  ];
+  function clearStampOverride() {
+    stampOverride = null;
+    textCharsPop.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+  }
+  for (const ch of SPECIAL_CHARS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = ch;
+    b.addEventListener('click', () => {
+      const arm = stampOverride !== ch;
+      clearStampOverride();
+      if (arm) {
+        stampOverride = ch;
+        b.classList.add('active');
+      }
+    });
+    textCharsPop.appendChild(b);
+  }
+  textInput.addEventListener('input', clearStampOverride);
+  textCharsBtn.addEventListener('click', () => {
+    const open = textCharsPop.style.display !== 'none';
+    textCharsPop.style.display = open ? 'none' : 'flex';
+    textCharsBtn.classList.toggle('active', !open);
+  });
   const brushBlack = document.getElementById('brushBlack');
   const brushWhite = document.getElementById('brushWhite');
   const brushColor = document.getElementById('brushColor');
   const brushColorInput = document.getElementById('brushColorInput');
   const brushEyedropper = document.getElementById('brushEyedropper');
   const brushEraser = document.getElementById('brushEraser');
+  const brushUnpaint = document.getElementById('brushUnpaint');
   const paintUndoBtn = document.getElementById('paintUndoBtn');
   const paintClearBtn = document.getElementById('paintClearBtn');
   const paintCanvasBtn = document.getElementById('paintCanvasBtn');
@@ -761,11 +881,14 @@
 
   // ---------- UI toggles ----------
 
-  // Collapsible panels: tap/click on a panel title toggles the panel down
-  // to just its title bar. Clicks on controls living inside the label
-  // (e.g. the Center button) don't toggle.
+  // Collapsible panels (mobile-only, same breakpoint as the CSS): tap on a
+  // panel title toggles the panel down to just its title bar. On desktop
+  // clicks stay inert. Clicks on controls living inside the label (e.g.
+  // the Center button) don't toggle.
+  const collapseMedia = window.matchMedia('(max-width: 900px)');
   document.querySelectorAll('.panel > .panel-label').forEach((label) => {
     label.addEventListener('click', (e) => {
+      if (!collapseMedia.matches) return;
       if (e.target.closest('button, input')) return;
       label.parentElement.classList.toggle('collapsed');
     });
@@ -834,12 +957,14 @@
   const BUCKET_CURSOR = 'url("data:image/svg+xml,' + encodeURIComponent(BUCKET_SVG) + '") 7 13, crosshair';
 
   function applyActiveBrush() {
-    for (const [btn, n] of [[brushBlack, 'black'], [brushWhite, 'white'], [brushColor, 'color'], [brushEraser, 'eraser']]) {
+    for (const [btn, n] of [[brushBlack, 'black'], [brushWhite, 'white'], [brushColor, 'color'], [brushEraser, 'eraser'], [brushUnpaint, 'unpaint']]) {
       btn.classList.toggle('active', activeBrush === n);
     }
-    rightCanvas.style.cursor = activeBrush
-      ? (paintTool === 'bucket' ? BUCKET_CURSOR : PENCIL_CURSOR)
-      : 'default';
+    rightCanvas.style.cursor = paintTool === 'text'
+      ? 'crosshair'
+      : activeBrush
+        ? (paintTool === 'bucket' ? BUCKET_CURSOR : PENCIL_CURSOR)
+        : 'default';
   }
 
   // Toggling version for the plain swatch buttons: clicking the already-
@@ -860,20 +985,235 @@
     applyActiveBrush();
   }
 
-  // Pencil/Bucket tool toggle: exactly one active at all times (unlike the
-  // brush swatches, neither ever deselects itself).
+  // Pencil/Bucket/Text tool toggle: exactly one active at all times (unlike
+  // the brush swatches, none ever deselects itself). The text input is only
+  // visible while the Text tool is active.
   function setPaintTool(tool) {
     paintTool = tool;
     toolPencil.classList.toggle('active', tool === 'pencil');
     toolBucket.classList.toggle('active', tool === 'bucket');
+    toolText.classList.toggle('active', tool === 'text');
+    textInput.style.display = tool === 'text' ? 'inline-block' : 'none';
+    textSizeSeg.style.display = tool === 'text' ? 'inline-flex' : 'none';
+    textCharsBtn.style.display = tool === 'text' ? 'inline-flex' : 'none';
+    if (tool !== 'text') {
+      textCharsPop.style.display = 'none';
+      textCharsBtn.classList.remove('active');
+    }
+    if (tool === 'text') textInput.focus();
     applyActiveBrush(); // cursor follows the tool
   }
   toolPencil.addEventListener('click', () => setPaintTool('pencil'));
   toolBucket.addEventListener('click', () => setPaintTool('bucket'));
+  toolText.addEventListener('click', () => setPaintTool('text'));
+
+  // ---------- pixel text ----------
+  // Symbol glyphs ({w, rows}; MSB = left column), shared by all sizes -
+  // drawn from bitmap at 1x/2x/3x scale (never rasterized).
+  const SYMBOLS = {
+    '♥':{w:5, rows:[10,31,31,14,4]},
+    '★':{w:5, rows:[4,31,14,10,17]},
+    '●':{w:5, rows:[14,31,31,31,14]},
+    '○':{w:5, rows:[14,17,17,17,14]},
+    '◆':{w:5, rows:[4,14,31,14,4]},
+    '■':{w:5, rows:[31,31,31,31,31]}
+  };
+
+  // Tom Thumb 3x6 (MIT, Brian Swetland / Vassilii Khachaturov / Robey
+  // Pointer; via ev3dev/fonts-tom-thumb BDF). 3-bit rows, 6-row cell
+  // (baseline row 4, descender row 5). ASCII + German umlauts.
+  // Full-resolution 16x16 symbol variants used at size L, so a single
+  // symbol genuinely fills the canvas (5x5 x3 would stop at 15px).
+  const SYMBOLS_16 = {
+    '♥':{w:16, rows:[0,15420,32382,65535,65535,65535,65535,65535,32766,16380,8184,4080,2016,960,384,0]},
+    '★':{w:16, rows:[384,384,960,960,2016,65535,32766,16380,16380,8184,8184,16380,15420,28686,49155,0]},
+    '●':{w:16, rows:[960,4080,16380,16380,32766,32766,65535,65535,65535,65535,32766,32766,16380,16380,4080,960]},
+    '○':{w:16, rows:[960,4080,15420,12300,24582,24582,49155,49155,49155,49155,24582,24582,12300,15420,4080,960]},
+    '◆':{w:16, rows:[0,384,960,2016,4080,8184,16380,32766,32766,16380,8184,4080,2016,960,384,0]},
+    '■':{w:16, rows:[65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535]}
+  };
+
+  const TOM_THUMB = {' ':[0,0,0,0,0,0],'!':[2,2,2,0,2,0],'"':[5,5,0,0,0,0],'#':[5,7,5,7,5,0],'$':[3,6,3,6,2,0],'%':[4,1,2,4,1,0],'&':[6,6,7,5,3,0],"'":[2,2,0,0,0,0],'(':[1,2,2,2,1,0],')':[4,2,2,2,4,0],'*':[5,2,5,0,0,0],'+':[0,2,7,2,0,0],',':[0,0,0,2,4,0],'-':[0,0,7,0,0,0],'.':[0,0,0,0,2,0],'/':[1,1,2,4,4,0],'0':[3,5,5,5,6,0],'1':[2,6,2,2,2,0],'2':[6,1,2,4,7,0],'3':[6,1,2,1,6,0],'4':[5,5,7,1,1,0],'5':[7,4,6,1,6,0],'6':[3,4,7,5,7,0],'7':[7,1,2,4,4,0],'8':[7,5,7,5,7,0],'9':[7,5,7,1,6,0],':':[0,2,0,2,0,0],';':[0,2,0,2,4,0],'<':[1,2,4,2,1,0],'=':[0,7,0,7,0,0],'>':[4,2,1,2,4,0],'?':[7,1,2,0,2,0],'@':[2,5,7,4,3,0],A:[2,5,7,5,5,0],B:[6,5,6,5,6,0],C:[3,4,4,4,3,0],D:[6,5,5,5,6,0],E:[7,4,7,4,7,0],F:[7,4,7,4,4,0],G:[3,4,7,5,3,0],H:[5,5,7,5,5,0],I:[7,2,2,2,7,0],J:[1,1,1,5,2,0],K:[5,5,6,5,5,0],L:[4,4,4,4,7,0],M:[5,7,7,5,5,0],N:[5,7,7,7,5,0],O:[2,5,5,5,2,0],P:[6,5,6,4,4,0],Q:[2,5,5,7,3,0],R:[6,5,7,6,5,0],S:[3,4,2,1,6,0],T:[7,2,2,2,2,0],U:[5,5,5,5,3,0],V:[5,5,5,2,2,0],W:[5,5,7,7,5,0],X:[5,5,2,5,5,0],Y:[5,5,2,2,2,0],Z:[7,1,2,4,7,0],'[':[7,4,4,4,7,0],'\\':[0,4,2,1,0,0],']':[7,1,1,1,7,0],'^':[2,5,0,0,0,0],'_':[0,0,0,0,7,0],'`':[4,2,0,0,0,0],a:[0,6,3,5,7,0],b:[4,6,5,5,6,0],c:[0,3,4,4,3,0],d:[1,3,5,5,3,0],e:[0,3,5,6,3,0],f:[1,2,7,2,2,0],g:[0,3,5,7,1,2],h:[4,6,5,5,5,0],i:[2,0,2,2,2,0],j:[1,0,1,1,5,2],k:[4,5,6,6,5,0],l:[6,2,2,2,7,0],m:[0,7,7,7,5,0],n:[0,6,5,5,5,0],o:[0,2,5,5,2,0],p:[0,6,5,5,6,4],q:[0,3,5,5,3,1],r:[0,3,4,4,4,0],s:[0,3,6,3,6,0],t:[2,7,2,2,3,0],u:[0,5,5,5,3,0],v:[0,5,5,7,2,0],w:[0,5,7,7,7,0],x:[0,5,2,2,5,0],y:[0,5,5,3,1,2],z:[0,7,3,6,7,0],'{':[3,2,4,2,3,0],'|':[2,2,0,2,2,0],'}':[6,2,1,2,6,0],'~':[3,6,0,0,0,0],'Ä':[5,2,5,7,5,0],'Ö':[5,0,7,5,7,0],'Ü':[5,0,5,5,7,0],'ß':[3,5,6,5,6,4],'ä':[5,0,3,5,7,0],'ö':[5,0,2,5,2,0],'ü':[5,0,5,5,3,0]};
+  // Classic 5x7 dot-matrix font (Adafruit-GFX glcdfont.c, BSD).
+  // 5-bit rows, 7-row cell. ASCII 32-126.
+  const FONT_5X7 = {' ':{w:5,rows:[0,0,0,0,0,0,0]},'!':{w:5,rows:[4,4,4,4,4,0,4]},'"':{w:5,rows:[10,10,10,0,0,0,0]},'#':{w:5,rows:[10,10,31,10,31,10,10]},'$':{w:5,rows:[4,15,20,14,5,30,4]},'%':{w:5,rows:[24,25,2,4,8,19,3]},'&':{w:5,rows:[8,20,20,8,21,18,13]},"'":{w:5,rows:[6,6,4,8,0,0,0]},'(':{w:5,rows:[2,4,8,8,8,4,2]},')':{w:5,rows:[8,4,2,2,2,4,8]},'*':{w:5,rows:[4,21,14,31,14,21,4]},'+':{w:5,rows:[0,4,4,31,4,4,0]},',':{w:5,rows:[0,0,0,0,6,6,4]},'-':{w:5,rows:[0,0,0,31,0,0,0]},'.':{w:5,rows:[0,0,0,0,0,6,6]},'/':{w:5,rows:[0,1,2,4,8,16,0]},'0':{w:5,rows:[14,17,19,21,25,17,14]},'1':{w:5,rows:[4,12,4,4,4,4,14]},'2':{w:5,rows:[14,17,1,14,16,16,31]},'3':{w:5,rows:[31,1,2,6,1,17,14]},'4':{w:5,rows:[2,6,10,18,31,2,2]},'5':{w:5,rows:[31,16,30,1,1,17,14]},'6':{w:5,rows:[7,8,16,30,17,17,14]},'7':{w:5,rows:[31,1,1,2,4,8,16]},'8':{w:5,rows:[14,17,17,14,17,17,14]},'9':{w:5,rows:[14,17,17,15,1,2,28]},':':{w:5,rows:[0,0,4,0,4,0,0]},';':{w:5,rows:[0,0,4,0,4,4,8]},'<':{w:5,rows:[1,2,4,8,4,2,1]},'=':{w:5,rows:[0,0,31,0,31,0,0]},'>':{w:5,rows:[8,4,2,1,2,4,8]},'?':{w:5,rows:[14,17,1,6,4,0,4]},'@':{w:5,rows:[14,17,21,23,22,16,15]},A:{w:5,rows:[4,10,17,17,31,17,17]},B:{w:5,rows:[30,17,17,30,17,17,30]},C:{w:5,rows:[14,17,16,16,16,17,14]},D:{w:5,rows:[30,17,17,17,17,17,30]},E:{w:5,rows:[31,16,16,30,16,16,31]},F:{w:5,rows:[31,16,16,30,16,16,16]},G:{w:5,rows:[15,17,16,16,19,17,15]},H:{w:5,rows:[17,17,17,31,17,17,17]},I:{w:5,rows:[14,4,4,4,4,4,14]},J:{w:5,rows:[7,2,2,2,2,18,12]},K:{w:5,rows:[17,18,20,24,20,18,17]},L:{w:5,rows:[16,16,16,16,16,16,31]},M:{w:5,rows:[17,27,21,21,21,17,17]},N:{w:5,rows:[17,17,25,21,19,17,17]},O:{w:5,rows:[14,17,17,17,17,17,14]},P:{w:5,rows:[30,17,17,30,16,16,16]},Q:{w:5,rows:[14,17,17,17,21,18,13]},R:{w:5,rows:[30,17,17,30,20,18,17]},S:{w:5,rows:[14,17,16,14,1,17,14]},T:{w:5,rows:[31,21,4,4,4,4,4]},U:{w:5,rows:[17,17,17,17,17,17,14]},V:{w:5,rows:[17,17,17,17,17,10,4]},W:{w:5,rows:[17,17,17,21,21,21,10]},X:{w:5,rows:[17,17,10,4,10,17,17]},Y:{w:5,rows:[17,17,10,4,4,4,4]},Z:{w:5,rows:[31,1,2,14,8,16,31]},'[':{w:5,rows:[15,8,8,8,8,8,15]},'\\':{w:5,rows:[0,16,8,4,2,1,0]},']':{w:5,rows:[15,1,1,1,1,1,15]},'^':{w:5,rows:[4,10,17,0,0,0,0]},'_':{w:5,rows:[0,0,0,0,0,0,31]},'`':{w:5,rows:[12,12,4,2,0,0,0]},a:{w:5,rows:[0,0,12,2,14,18,15]},b:{w:5,rows:[16,16,22,25,17,25,22]},c:{w:5,rows:[0,0,14,17,16,17,14]},d:{w:5,rows:[1,1,13,19,17,19,13]},e:{w:5,rows:[0,0,14,17,31,16,14]},f:{w:5,rows:[2,5,4,14,4,4,4]},g:{w:5,rows:[0,0,14,19,19,13,1]},h:{w:5,rows:[16,16,22,25,17,17,17]},i:{w:5,rows:[4,0,12,4,4,4,14]},j:{w:5,rows:[2,0,2,2,2,18,12]},k:{w:5,rows:[16,16,18,20,24,20,18]},l:{w:5,rows:[12,4,4,4,4,4,14]},m:{w:5,rows:[0,0,26,21,21,21,21]},n:{w:5,rows:[0,0,22,25,17,17,17]},o:{w:5,rows:[0,0,14,17,17,17,14]},p:{w:5,rows:[0,0,22,25,25,22,16]},q:{w:5,rows:[0,0,13,19,19,13,1]},r:{w:5,rows:[0,0,22,25,16,16,16]},s:{w:5,rows:[0,0,15,16,14,1,30]},t:{w:5,rows:[4,4,31,4,4,5,2]},u:{w:5,rows:[0,0,17,17,17,19,13]},v:{w:5,rows:[0,0,17,17,17,10,4]},w:{w:5,rows:[0,0,17,17,21,21,10]},x:{w:5,rows:[0,0,17,10,4,10,17]},y:{w:5,rows:[0,0,17,17,15,1,17]},z:{w:5,rows:[0,0,31,2,4,8,31]},'{':{w:5,rows:[2,4,4,8,4,4,2]},'|':{w:5,rows:[4,4,4,0,4,4,4]},'}':{w:5,rows:[8,4,4,2,4,4,8]},'~':{w:5,rows:[8,21,2,0,0,0,0]}};
+
+  // Cell coordinates of every set pixel for `text` anchored at cell (x0,y0),
+  // clipped to the 16x16 canvas. Size picks the letter font: 1x = Tom Thumb
+  // (3x6), 2x = classic 5x7 dot-matrix, 3x = system-font raster. Symbols
+  // always come from SYMBOLS, bitmap-scaled by size (never rasterized).
+  // Case-sensitive lookup first, then case-swapped fallback; unknown
+  // characters render as a space.
+  function textPixelCells(text, x0, y0) {
+    const allSymbols = [...text].every((ch) => SYMBOLS[ch]);
+    if (textSize === 3 && !allSymbols) return rasterTextCells(text, x0, y0);
+    const font = textSize === 2 ? FONT_5X7 : TOM_THUMB;
+    const cells = [];
+    let cx = x0;
+    for (const ch of text) {
+      // at L, symbols swap to their dedicated 16x16 bitmap (scale 1)
+      const sym16 = textSize === 3 ? SYMBOLS_16[ch] : null;
+      const sym = sym16 || SYMBOLS[ch];
+      const glyph = sym || font[ch] || font[ch.toUpperCase()] || font[ch.toLowerCase()] || font[' '];
+      // letters render at native size (the size segment swaps the font);
+      // symbols scale their bitmap with the size instead
+      const s = sym16 ? 1 : sym ? textSize : 1;
+      // glyphs are either plain row arrays (3 wide) or {w, rows} for wider
+      // symbol glyphs; MSB is always the left column. Advance is
+      // proportional: only the glyph's ink columns count (a '.' or 'i' is
+      // 1px wide, not a full cell), plus a 1px gap.
+      const rows = glyph.rows || glyph;
+      const gw = glyph.w || 3;
+      let minCol = gw, maxCol = -1;
+      for (const bits of rows) {
+        for (let col = 0; col < gw; col++) {
+          if (bits & (1 << (gw - 1 - col))) {
+            if (col < minCol) minCol = col;
+            if (col > maxCol) maxCol = col;
+          }
+        }
+      }
+      if (maxCol < 0) { // no ink = space
+        cx += sym ? 2 * s : (textSize === 2 ? 3 : 2);
+        continue;
+      }
+      for (let row = 0; row < rows.length; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+          if (!(rows[row] & (1 << (gw - 1 - col)))) continue;
+          for (let dy = 0; dy < s; dy++) {
+            for (let dx = 0; dx < s; dx++) {
+              const px = cx + (col - minCol) * s + dx, py = y0 + row * s + dy;
+              if (px < 0 || py < 0 || px >= FINAL_SIZE || py >= FINAL_SIZE) continue;
+              cells.push(py * FINAL_SIZE + px);
+            }
+          }
+        }
+      }
+      cx += (maxCol - minCol + 2) * s;
+      if (cx >= FINAL_SIZE) break;
+    }
+    return cells;
+  }
+
+  // Big size: instead of blowing the 3x5 font up to 3px-thick blocks,
+  // rasterize the text with a real (bold system) font scaled so its ink
+  // box is 16px tall, then threshold the alpha channel into cells. Gives
+  // proper letterforms - and any character the system font knows (umlauts,
+  // symbols) works for free.
+  const rasterCanvas = document.createElement('canvas');
+  rasterCanvas.width = 96;
+  rasterCanvas.height = 48;
+  function rasterTextCells(text, x0, y0) {
+    const octx = rasterCanvas.getContext('2d', { willReadFrequently: true });
+    octx.clearRect(0, 0, rasterCanvas.width, rasterCanvas.height);
+    let size = 20;
+    octx.font = 'bold ' + size + 'px sans-serif';
+    let m = octx.measureText(text);
+    const h = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+    if (h > 0) size = Math.max(4, Math.round(size * 16 / h));
+    octx.font = 'bold ' + size + 'px sans-serif';
+    m = octx.measureText(text);
+    octx.fillStyle = '#fff';
+    octx.textBaseline = 'alphabetic';
+    octx.fillText(text, 2, Math.ceil(m.actualBoundingBoxAscent) + 2);
+    const data = octx.getImageData(0, 0, rasterCanvas.width, rasterCanvas.height).data;
+    // tight ink bounding box so (x0,y0) anchors the visible top-left
+    let minX = Infinity, minY = Infinity;
+    const on = [];
+    for (let y = 0; y < rasterCanvas.height; y++) {
+      for (let x = 0; x < rasterCanvas.width; x++) {
+        if (data[(y * rasterCanvas.width + x) * 4 + 3] > 127) {
+          on.push([x, y]);
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+        }
+      }
+    }
+    const cells = [];
+    for (const [x, y] of on) {
+      const px = x0 + x - minX, py = y0 + y - minY;
+      if (px < 0 || py < 0 || px >= FINAL_SIZE || py >= FINAL_SIZE) continue;
+      cells.push(py * FINAL_SIZE + px);
+    }
+    return cells;
+  }
+
+  // Brush color for text: active brush if one is armed (eraser stamps
+  // erase, matching pencil semantics), black otherwise so the tool works
+  // without arming a brush first.
+  function textBrushValue() {
+    return brushValue() || { r: 0, g: 0, b: 0 };
+  }
+
+  // What the text tool would stamp right now: an armed palette symbol wins
+  // over whatever is typed in the input.
+  function currentStampText() {
+    return stampOverride !== null ? stampOverride : textInput.value;
+  }
+
+  // Ink size of a stamp (unclipped would be nicer, but measuring at (0,0)
+  // is exact for anything that fits the canvas) - used to CENTER the stamp
+  // on the cursor cell instead of hanging it off the top-left.
+  function stampSize(text) {
+    let w = 0, h = 0;
+    for (const idx of textPixelCells(text, 0, 0)) {
+      const px = idx % FINAL_SIZE, py = (idx - px) / FINAL_SIZE;
+      if (px + 1 > w) w = px + 1;
+      if (py + 1 > h) h = py + 1;
+    }
+    return { w, h };
+  }
+
+  function stampAnchor(text, clientX, clientY) {
+    const rect = rightCanvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const cx = Math.floor((clientX - rect.left) / (rect.width / FINAL_SIZE));
+    const cy = Math.floor((clientY - rect.top) / (rect.height / FINAL_SIZE));
+    const { w, h } = stampSize(text);
+    return { x: cx - (Math.ceil(w / 2) - 1), y: cy - (Math.ceil(h / 2) - 1) };
+  }
+
+  function stampTextAt(clientX, clientY) {
+    const text = currentStampText();
+    if (!text) return;
+    const a = stampAnchor(text, clientX, clientY);
+    if (!a) return;
+    const cells = textPixelCells(text, a.x, a.y);
+    if (!cells.length) return;
+    pushUndoSnapshot(); // once per stamp
+    const value = textBrushValue();
+    for (const idx of cells) paintLayer[idx] = value === 'unpaint' ? null : value;
+    processAll();
+  }
+
+  // Hover preview: pipeline result + the would-be text pixels at ~55%
+  // alpha, drawn directly over rightCanvas. processAll() repaints the real
+  // state, so leaving the canvas or stamping simply clears the ghost.
+  function drawTextPreviewAt(clientX, clientY) {
+    const text = currentStampText();
+    processAll();
+    if (!text) return;
+    const a = stampAnchor(text, clientX, clientY);
+    if (!a) return;
+    const value = textBrushValue();
+    rightCtx.save();
+    rightCtx.globalAlpha = 0.55;
+    for (const idx of textPixelCells(text, a.x, a.y)) {
+      const px = idx % FINAL_SIZE, py = (idx - px) / FINAL_SIZE;
+      if (value === 'erase' || value === 'unpaint') {
+        rightCtx.clearRect(px, py, 1, 1);
+      } else {
+        rightCtx.fillStyle = 'rgb(' + value.r + ',' + value.g + ',' + value.b + ')';
+        rightCtx.fillRect(px, py, 1, 1);
+      }
+    }
+    rightCtx.restore();
+  }
 
   brushBlack.addEventListener('click', () => setActiveBrush('black'));
   brushWhite.addEventListener('click', () => setActiveBrush('white'));
   brushEraser.addEventListener('click', () => setActiveBrush('eraser'));
+  brushUnpaint.addEventListener('click', () => setActiveBrush('unpaint'));
 
   // The color input sits invisibly on top of the brushColor swatch button
   // (see .brush-swatch-wrap CSS) so a single click both opens the native
@@ -961,6 +1301,26 @@
   });
   updateCanvasModeUI();
 
+  // "Mask" button: cycles what the paint layer MEANS (off -> keep -> cut).
+  // off: paint draws normally on top. keep: the image only shows where
+  // painted (stencil). cut: the image is punched out where painted.
+  // Like the Canvas button this is a render choice - the paint layer data
+  // itself is untouched, no undo snapshot.
+  const maskBtn = document.getElementById('maskBtn');
+  let maskMode = 'off'; // 'off' | 'keep' | 'cut'
+  const MASK_TITLES = {
+    off: 'Paint as mask: off (paint draws normally)',
+    keep: 'Paint as mask: keep - image shows only where painted',
+    cut: 'Paint as mask: cut - image is cut out where painted'
+  };
+  maskBtn.addEventListener('click', () => {
+    maskMode = maskMode === 'off' ? 'keep' : maskMode === 'keep' ? 'cut' : 'off';
+    maskBtn.title = MASK_TITLES[maskMode];
+    maskBtn.textContent = maskMode === 'off' ? 'Mask' : 'Mask: ' + maskMode;
+    maskBtn.classList.toggle('active', maskMode !== 'off');
+    processAll();
+  });
+
   // Grid overlay: display-only aid, never touches the actual pixel data -
   // it's a separate absolutely-positioned layer over the canvas, not baked
   // into export/palette/Yoto preview.
@@ -972,6 +1332,7 @@
     if (activeBrush === 'black') return { r: 0, g: 0, b: 0 };
     if (activeBrush === 'white') return { r: 255, g: 255, b: 255 };
     if (activeBrush === 'eraser') return 'erase';
+    if (activeBrush === 'unpaint') return 'unpaint'; // clears paint cells, image shows again
     if (activeBrush === 'color') {
       const hex = brushColorInput.value;
       return {
@@ -991,7 +1352,7 @@
     if (x < 0 || y < 0 || x >= FINAL_SIZE || y >= FINAL_SIZE) return;
     const value = brushValue();
     if (value === null) return;
-    paintLayer[y * FINAL_SIZE + x] = value;
+    paintLayer[y * FINAL_SIZE + x] = value === 'unpaint' ? null : value;
     processAll();
   }
 
@@ -1029,7 +1390,7 @@
     visited[startIdx] = 1;
     while (stack.length) {
       const idx = stack.pop();
-      paintLayer[idx] = value;
+      paintLayer[idx] = value === 'unpaint' ? null : value;
       const cx = idx % FINAL_SIZE, cy = (idx - cx) / FINAL_SIZE;
       const neighbors = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
       for (const [nx, ny] of neighbors) {
@@ -1050,6 +1411,13 @@
   rightCanvas.addEventListener('pointerdown', (e) => {
     // No sourceImage gate: painting works standalone from page load, before
     // any image is ever loaded (see processAll's standalone branch).
+    if (paintTool === 'text') {
+      // Works without an armed brush (falls back to black); single click
+      // stamps, no drag.
+      stampTextAt(e.clientX, e.clientY);
+      e.preventDefault();
+      return;
+    }
     if (!activeBrush) return;
     if (paintTool === 'bucket') {
       // Single click only - no drag stroke for bucket fill.
@@ -1065,8 +1433,16 @@
   });
 
   rightCanvas.addEventListener('pointermove', (e) => {
+    if (paintTool === 'text') {
+      drawTextPreviewAt(e.clientX, e.clientY);
+      return;
+    }
     if (!isPainting) return;
     paintAt(e.clientX, e.clientY);
+  });
+
+  rightCanvas.addEventListener('pointerleave', () => {
+    if (paintTool === 'text') processAll(); // clear the text ghost
   });
 
   function endPaint(e) {
@@ -1121,9 +1497,8 @@
       zoom = 1;
       zoomSlider.value = '1';
       zoomVal.textContent = '1.0';
-      paintLayer.fill(null);
-      undoStack = [];
-      paintUndoBtn.disabled = true;
+      // paint layer + undo history deliberately survive an image (re)load -
+      // painted pixels sit on top of the new image; Clear/rubber removes them
       canvasMode = 'image';
       updateCanvasModeUI();
       colorRemap = new Map();
@@ -1598,7 +1973,12 @@
         rightCtx.fillStyle = canvasMode === 'white' ? '#ffffff' : '#000000';
         rightCtx.fillRect(0, 0, FINAL_SIZE, FINAL_SIZE);
       }
-      applyPaintLayer();
+      applyPaintStage();
+      // The paint layer IS the image here, so the "Output color map" reads
+      // (and remaps) the painted pixels - snapshot pre-remap, exactly like
+      // the real pipeline keys its swatches on the pre-remap stage.
+      const standaloneRaw = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
+      applyColorRemap(rightCtx);
       if (bgColorToggle.checked) {
         rightCtx.save();
         rightCtx.globalCompositeOperation = 'destination-over';
@@ -1607,7 +1987,7 @@
         rightCtx.restore();
       }
       updateSwatches();
-      updateColorsUsedSwatches(null);
+      updateColorsUsedSwatches(standaloneRaw);
       renderYotoPreview();
       return;
     }
@@ -1671,22 +2051,6 @@
       rightCtx.putImageData(imgData, 0, 0);
     }
 
-    // Raw processed-image colors, pre-remap - this is the stable identity
-    // the "Colors used" swatches are keyed on (see updateColorsUsedSwatches),
-    // so re-editing an already-remapped swatch always resolves back to the
-    // same original color instead of chaining off whatever it currently
-    // displays.
-    const rawImageData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
-
-    // 4a. color remap - user edits from the "Output color map" swatches,
-    // applied directly on the processed 16x16 image: every pixel whose
-    // exact RGB matches a remapped original color is replaced with its
-    // target color. Runs after color reduction, before the canvasMode base
-    // override and before paint.
-    applyColorRemap(rightCtx);
-
-    updateColorsUsedSwatches(rawImageData);
-
     // 4b. canvas base-mode override - the "Canvas" toolbar button lets the
     // user ignore/hide the processed input image and paint on a blank or
     // solid base instead, without ever touching the paint layer itself.
@@ -1702,7 +2066,17 @@
     // after: erase punches a real transparent hole here, and the
     // background color (next, if on) sits underneath it like any other
     // transparency. With BG color off, that hole is the final result.
-    applyPaintLayer();
+    applyPaintStage();
+
+    // 6a. color-map snapshot + remap - AFTER paint, so painted colors show
+    // up in the "Output color map" and are remappable exactly like pipeline
+    // colors (same order as the standalone branch). The snapshot is the
+    // pre-remap identity the swatches are keyed on, so re-editing an
+    // already-remapped swatch always resolves back to the same original
+    // color instead of chaining off whatever it currently displays.
+    const rawImageData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
+    applyColorRemap(rightCtx);
+    updateColorsUsedSwatches(rawImageData);
 
     // 7. optional background color - the actual last stage. Composited via
     // destination-over so it only shows through transparency - original
@@ -1718,6 +2092,28 @@
 
     updateSwatches(preReductionImageData);
     renderYotoPreview();
+  }
+
+  // Mask modes: the paint layer stops drawing colors and instead gates the
+  // image's alpha. keep = pixels WITHOUT paint go transparent (stencil),
+  // cut = pixels WITH paint go transparent (cutout).
+  function applyPaintMask() {
+    const imgData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
+    const data = imgData.data;
+    for (let idx = 0; idx < paintLayer.length; idx++) {
+      const painted = paintLayer[idx] !== null;
+      if (maskMode === 'keep' ? !painted : painted) {
+        data[idx * 4 + 3] = 0;
+      }
+    }
+    rightCtx.putImageData(imgData, 0, 0);
+  }
+
+  // Applies paint according to the mask toggle: normal color painting when
+  // off, alpha gating in the mask modes.
+  function applyPaintStage() {
+    if (maskMode === 'off') applyPaintLayer();
+    else applyPaintMask();
   }
 
   function applyPaintLayer() {
