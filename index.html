@@ -1217,6 +1217,14 @@
     vibranceVal.textContent = vibranceSlider.value;
     processAll();
   });
+  // Double-click anywhere on the slider (or its label/value) snaps it back to 0.
+  function resetSlider(slider, valEl) {
+    slider.value = '0';
+    valEl.textContent = '0';
+    processAll();
+  }
+  contrastSlider.closest('.control-group').addEventListener('dblclick', () => resetSlider(contrastSlider, contrastVal));
+  vibranceSlider.closest('.control-group').addEventListener('dblclick', () => resetSlider(vibranceSlider, vibranceVal));
   const samplingButtons = Array.from(samplingSegmented.querySelectorAll('.segment'));
   samplingButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
