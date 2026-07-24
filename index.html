@@ -471,6 +471,16 @@
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
+  .app-version {
+    position: fixed;
+    left: 10px;
+    bottom: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+    opacity: 0.6;
+    pointer-events: none;
+    user-select: none;
+  }
   .palette-strip h2 {
     font-size: 11px;
     text-transform: uppercase;
@@ -769,6 +779,18 @@
     </div>
 
     <div class="control-group">
+      <span class="sub-value">Contrast</span>
+      <input type="range" id="contrastSlider" min="-100" max="100" value="0">
+      <span class="sub-value" id="contrastVal">0</span>
+    </div>
+
+    <div class="control-group">
+      <span class="sub-value">Vibrance</span>
+      <input type="range" id="vibranceSlider" min="-100" max="100" value="0">
+      <span class="sub-value" id="vibranceVal">0</span>
+    </div>
+
+    <div class="control-group">
       <label><input type="checkbox" id="bgColorToggle"> BG color</label>
       <input type="color" id="bgColorInput" value="#000000" style="display:none;">
     </div>
@@ -846,10 +868,10 @@
           </button>
         </div>
         <div class="segmented text-size-seg" id="shapeFillSeg" style="display:none">
-          <button type="button" class="segment active" data-fill="1" title="Filled">
+          <button type="button" class="segment" data-fill="1" title="Filled">
             <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>
           </button>
-          <button type="button" class="segment" data-fill="0" title="Outline only">
+          <button type="button" class="segment active" data-fill="0" title="Outline only">
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>
           </button>
         </div>
@@ -940,6 +962,8 @@
   </footer>
 </main>
 
+<div class="app-version" id="appVersion">v1.3.0</div>
+
 <div class="emoji-modal" id="emojiModal" style="display:none">
   <div class="emoji-card">
     <div class="emoji-title">Emoji to pixel art</div>
@@ -987,6 +1011,10 @@
   const ditherToggle = document.getElementById('ditherToggle');
   const bgColorToggle = document.getElementById('bgColorToggle');
   const bgColorInput = document.getElementById('bgColorInput');
+  const contrastSlider = document.getElementById('contrastSlider');
+  const contrastVal = document.getElementById('contrastVal');
+  const vibranceSlider = document.getElementById('vibranceSlider');
+  const vibranceVal = document.getElementById('vibranceVal');
   const zoomSlider = document.getElementById('zoomSlider');
   const zoomVal = document.getElementById('zoomVal');
   const fileInput = document.getElementById('fileInput');
@@ -1108,7 +1136,7 @@
   let isPainting = false;
   let symMode = 'off'; // 'off' | 'h' | 'v' | 'quad' - live mirror while painting
   let shapeType = 'rect';  // 'rect' | 'square' | 'circle'
-  let shapeFilled = true;  // fill vs outline-only
+  let shapeFilled = false;  // fill vs outline-only (default: outline)
   // "Canvas" base-mode: non-destructive override of what the paint layer
   // sits on top of. Never touches paintLayer itself and never goes through
   // undo - it's just a display/render choice, cycled by the toolbar button.
@@ -1163,6 +1191,14 @@
   });
   bgTolerance.addEventListener('input', () => {
     bgToleranceVal.textContent = bgTolerance.value;
+    processAll();
+  });
+  contrastSlider.addEventListener('input', () => {
+    contrastVal.textContent = contrastSlider.value;
+    processAll();
+  });
+  vibranceSlider.addEventListener('input', () => {
+    vibranceVal.textContent = vibranceSlider.value;
     processAll();
   });
   const samplingButtons = Array.from(samplingSegmented.querySelectorAll('.segment'));
@@ -2796,6 +2832,40 @@
   // paint layer is composited so "Colors=N" also quantizes inserted emoji and
   // hand-painted pixels - the <=N-colors guarantee then holds for the whole
   // icon, not just the source image.
+  // Contrast + vibrance on the sampled image (before paint/reduction), so it
+  // shapes the loaded photo only - the hand-paint layer and inserted emoji
+  // (which composite later) are left untouched. Both are no-ops at 0.
+  function applyImageAdjustments(imgData) {
+    const c = parseInt(contrastSlider.value, 10);   // -100..100
+    const v = parseInt(vibranceSlider.value, 10);   // -100..100
+    if (c === 0 && v === 0) return;
+    const C = c * 2.55;                              // -255..255
+    const cf = (259 * (C + 255)) / (255 * (259 - C)); // contrast factor
+    const vamt = v / 100;
+    const data = imgData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] === 0) continue; // skip fully transparent
+      let r = data[i], g = data[i + 1], b = data[i + 2];
+      if (c !== 0) {
+        r = cf * (r - 128) + 128;
+        g = cf * (g - 128) + 128;
+        b = cf * (b - 128) + 128;
+      }
+      if (v !== 0) {
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        const sat = (mx - mn) / 255;               // 0..1 chroma
+        const amt = vamt * (1 - sat);              // boost low-sat pixels more
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        r = gray + (r - gray) * (1 + amt);
+        g = gray + (g - gray) * (1 + amt);
+        b = gray + (b - gray) * (1 + amt);
+      }
+      data[i]     = r < 0 ? 0 : r > 255 ? 255 : r;
+      data[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
+      data[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
+    }
+  }
+
   function applyColorReductionStage() {
     const reduceVal = colorsValue;
     if (reduceVal === 'off') return;
@@ -2880,6 +2950,13 @@
     } else {
       rightCtx.imageSmoothingEnabled = samplingMode === 'smooth';
       rightCtx.drawImage(leftResult, 0, 0, S, S, 0, 0, FINAL_SIZE, FINAL_SIZE);
+    }
+
+    // 3b. contrast / vibrance on the sampled image (no-op at 0/0)
+    {
+      const adj = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
+      applyImageAdjustments(adj);
+      rightCtx.putImageData(adj, 0, 0);
     }
 
     // Pure sampled-input snapshot - straight off the downscale, before
