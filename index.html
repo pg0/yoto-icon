@@ -597,15 +597,21 @@
   .emoji-top {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 12px;
+    margin-bottom: 12px;
   }
   .emoji-top .emoji-input {
-    flex: 1;
+    flex: none;
+    width: 74px;
+    font-size: 20px;
+    padding: 8px 6px;
+  }
+  .emoji-top .emoji-input::placeholder {
+    font-size: 11px;
   }
   .emoji-preview {
-    width: 66px;
-    height: 66px;
+    width: 150px;
+    height: 150px;
     flex-shrink: 0;
     image-rendering: pixelated;
     border: 1px solid var(--panel-border);
@@ -936,7 +942,7 @@
     <div class="emoji-title">Emoji to pixel art</div>
     <div class="emoji-top">
       <canvas id="emojiPreview" class="emoji-preview" width="24" height="24"></canvas>
-      <input type="text" id="emojiInput" class="emoji-input" placeholder="Type or paste" maxlength="8" spellcheck="false">
+      <input type="text" id="emojiInput" class="emoji-input" placeholder="paste" maxlength="8" spellcheck="false" title="Type or paste an emoji">
     </div>
     <div class="emoji-tabs" id="emojiTabs"></div>
     <div class="emoji-quick" id="emojiQuick"></div>
