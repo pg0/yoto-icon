@@ -1132,6 +1132,25 @@
   };
   yotoPhoto.src = './yoto-mini-front.png';
 
+  // Second preview device: the bigger Yoto Player (SVG outline). Clicking the
+  // preview toggles Mini <-> Player. The Player's LED screen is rendered with
+  // larger, diffused glowing pixels (frosted-screen look), unlike the Mini's
+  // crisp render.
+  let previewMode = 'mini'; // 'mini' | 'player'
+  let yotoPlayerLoaded = false;
+  const yotoPlayerPhoto = new Image();
+  yotoPlayerPhoto.onload = () => {
+    yotoPlayerLoaded = true;
+    if (previewMode === 'player') renderYotoPreview();
+  };
+  yotoPlayerPhoto.src = './yoto-player.svg';
+  yotoCanvas.style.cursor = 'pointer';
+  yotoCanvas.title = 'Click to switch Mini / Player';
+  yotoCanvas.addEventListener('click', () => {
+    previewMode = previewMode === 'mini' ? 'player' : 'mini';
+    renderYotoPreview();
+  });
+
   let sourceImage = null;
   let cropOffsetX = 0;
   let cropOffsetY = 0;
@@ -3364,17 +3383,63 @@
 
   // ---------- yoto box preview ----------
 
+  // Yoto Player LED screen area (matches yoto-player.svg exactly).
+  const PLAYER_SCREEN = { x: 105, y: 150, size: 160 };
+
   function renderYotoPreview() {
+    yotoCtx.clearRect(0, 0, yotoCanvas.width, yotoCanvas.height);
+    if (previewMode === 'player') {
+      if (!yotoPlayerLoaded) return;
+      yotoCtx.drawImage(yotoPlayerPhoto, 0, 0);
+      renderPlayerScreen();
+      return;
+    }
+    // Mini: crisp icon composited onto the Mini photo.
     // No sourceImage gate: renders the (possibly empty/hand-painted) icon
     // as soon as the mockup photo itself has loaded.
     if (!yotoPhotoLoaded) return;
-    yotoCtx.clearRect(0, 0, yotoCanvas.width, yotoCanvas.height);
     yotoCtx.drawImage(yotoPhoto, 0, 0);
     yotoCtx.imageSmoothingEnabled = false;
     yotoCtx.drawImage(
       rightCanvas, 0, 0, FINAL_SIZE, FINAL_SIZE,
       YOTO_DRAW_X, YOTO_DRAW_Y, YOTO_ICON_SIZE, YOTO_ICON_SIZE
     );
+  }
+
+  // Render the 16x16 icon onto the Player's screen as larger, diffused glowing
+  // dots - each lit LED is a soft radial-glow blob so the grid reads like the
+  // real frosted display (bloom, no hard pixel edges), unlike the Mini.
+  function renderPlayerScreen() {
+    const { x: sx, y: sy, size } = PLAYER_SCREEN;
+    const N = FINAL_SIZE;            // 16
+    const cell = size / N;           // 10px per LED
+    const data = rightCtx.getImageData(0, 0, N, N).data;
+    yotoCtx.save();
+    // Clip to the rounded screen so glow never spills onto the bezel.
+    yotoCtx.beginPath();
+    yotoCtx.roundRect(sx, sy, size, size, 16);
+    yotoCtx.clip();
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const i = (r * N + c) * 4;
+        const a = data[i + 3];
+        if (a < 20) continue;
+        const R = data[i], G = data[i + 1], B = data[i + 2];
+        const cx = sx + c * cell + cell / 2;
+        const cy = sy + r * cell + cell / 2;
+        const rad = cell * 0.9;      // slight overlap -> diffused, continuous
+        const al = a / 255;
+        const g = yotoCtx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+        g.addColorStop(0, `rgba(${R},${G},${B},${0.95 * al})`);
+        g.addColorStop(0.45, `rgba(${R},${G},${B},${0.55 * al})`);
+        g.addColorStop(1, `rgba(${R},${G},${B},0)`);
+        yotoCtx.fillStyle = g;
+        yotoCtx.beginPath();
+        yotoCtx.arc(cx, cy, rad, 0, Math.PI * 2);
+        yotoCtx.fill();
+      }
+    }
+    yotoCtx.restore();
   }
 
   let toastTimer = null;
