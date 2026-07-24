@@ -512,6 +512,83 @@
     padding: 0;
     border: none;
   }
+  /* Emoji -> pixel art modal */
+  .emoji-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.5);
+  }
+  .emoji-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 18px;
+    width: 300px;
+    max-width: calc(100vw - 32px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .emoji-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .emoji-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 22px;
+    text-align: center;
+  }
+  .emoji-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 10px 0;
+  }
+  .emoji-quick button {
+    font-size: 20px;
+    line-height: 1;
+    padding: 3px 4px;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .emoji-quick button:hover {
+    border-color: var(--accent);
+  }
+  .emoji-quality {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 4px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .emoji-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .emoji-actions .go {
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
   .toast {
     display: inline-block;
     margin-left: 8px;
@@ -555,7 +632,7 @@
 <main>
   <div class="controls">
     <div class="control-group">
-      <label><input type="checkbox" id="bgToggle"> Remove background</label>
+      <label><input type="checkbox" id="bgToggle"> Remove BG</label>
       <span id="tolWrap" style="display:none; align-items:center; gap:6px;">
         <span class="sub-value">Tolerance</span>
         <input type="range" id="bgTolerance" min="0" max="50" value="30">
@@ -618,9 +695,19 @@
             <circle cx="13.5" cy="12.5" r="1.3" fill="currentColor" stroke="none"/>
           </svg>
         </button>
-        <button id="toolText" type="button" class="tool-btn" title="Pixel text (3x5 font)">
+        <button id="toolText" type="button" class="tool-btn" title="Pixel text (S/M/L sizes)">
           <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
             <path d="M2 2h12v3h-2V4H9v9h2v2H5v-2h2V4H4v1H2V2z"/>
+          </svg>
+        </button>
+        <button id="toolEmoji" type="button" class="tool-btn" title="Emoji / icon to pixel art">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM5.5 6a1 1 0 110 2 1 1 0 010-2zm5 0a1 1 0 110 2 1 1 0 010-2zM4.6 10h6.8a3.5 3.5 0 01-6.8 0z"/>
+          </svg>
+        </button>
+        <button id="toolMove" type="button" class="tool-btn" title="Move the whole drawing (drag; arrow keys nudge)">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+            <path d="M8 0L5.5 2.5h1.75v4.75H2.5V5.5L0 8l2.5 2.5V9.25h4.75V14H5.5L8 16l2.5-2.5H8.75V9.25h4.75V10.5L16 8l-2.5-2.5v1.75H8.75V2.5H10.5L8 0z"/>
           </svg>
         </button>
         <input type="text" id="textInput" class="text-input" placeholder="Text" maxlength="16" spellcheck="false" style="display:none">
@@ -652,6 +739,7 @@
         <button id="brushUnpaint" type="button" class="brush-swatch brush-unpaint" title="Rubber: remove paint, restore image"></button>
         <button id="paintUndoBtn" type="button" class="secondary center-btn" disabled>Undo</button>
         <button id="paintClearBtn" type="button" class="secondary center-btn">Clear</button>
+        <button id="symBtn" type="button" class="secondary center-btn" title="Symmetry: off (click to cycle horizontal / vertical / quad mirror)">Sym</button>
         <button id="maskBtn" type="button" class="secondary center-btn" title="Paint as mask: off (paint draws normally)">Mask</button>
         <button id="paintCanvasBtn" type="button" class="secondary center-btn" title="Canvas base: image (click to cycle to transparent/white/black)">Canvas</button>
         <label class="grid-toggle" title="Show pixel grid (display only, not exported)">
@@ -704,6 +792,26 @@
   </footer>
 </main>
 
+<div class="emoji-modal" id="emojiModal" style="display:none">
+  <div class="emoji-card">
+    <div class="emoji-title">Emoji to pixel art</div>
+    <input type="text" id="emojiInput" class="emoji-input" placeholder="Type or paste an emoji" maxlength="8" spellcheck="false">
+    <div class="emoji-quick" id="emojiQuick"></div>
+    <div class="emoji-quality">
+      <span>Quality</span>
+      <div class="segmented" id="emojiQualitySeg">
+        <button type="button" class="segment" data-q="nearest" title="Sharp - nearest pixel">Sharp</button>
+        <button type="button" class="segment active" data-q="smooth" title="Balanced - smooth downscale">Balanced</button>
+        <button type="button" class="segment" data-q="dominant" title="Soft - dominant color per cell">Soft</button>
+      </div>
+    </div>
+    <div class="emoji-actions">
+      <button type="button" class="secondary center-btn" id="emojiCancel">Cancel</button>
+      <button type="button" class="go" id="emojiConvert">Convert</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   const FINAL_SIZE = 16;
@@ -736,6 +844,9 @@
   const toolPencil = document.getElementById('toolPencil');
   const toolBucket = document.getElementById('toolBucket');
   const toolText = document.getElementById('toolText');
+  const toolMove = document.getElementById('toolMove');
+  const toolEmoji = document.getElementById('toolEmoji');
+  const symBtn = document.getElementById('symBtn');
   const textInput = document.getElementById('textInput');
   const textSizeSeg = document.getElementById('textSizeSeg');
   let textSize = 1; // 1x/2x/3x integer scale for the pixel font
@@ -832,8 +943,9 @@
   // null = untouched, {r,g,b} = painted color, 'erase' = forced transparent.
   let paintLayer = new Array(FINAL_SIZE * FINAL_SIZE).fill(null);
   let activeBrush = null; // 'black' | 'white' | 'color' | 'eraser' | null
-  let paintTool = 'pencil'; // 'pencil' | 'bucket'
+  let paintTool = 'pencil'; // 'pencil' | 'bucket' | 'text' | 'move'
   let isPainting = false;
+  let symMode = 'off'; // 'off' | 'h' | 'v' | 'quad' - live mirror while painting
   // "Canvas" base-mode: non-destructive override of what the paint layer
   // sits on top of. Never touches paintLayer itself and never goes through
   // undo - it's just a display/render choice, cycled by the toolbar button.
@@ -948,7 +1060,9 @@
     for (const [btn, n] of [[brushBlack, 'black'], [brushWhite, 'white'], [brushColor, 'color'], [brushEraser, 'eraser'], [brushUnpaint, 'unpaint']]) {
       btn.classList.toggle('active', activeBrush === n);
     }
-    rightCanvas.style.cursor = paintTool === 'text'
+    rightCanvas.style.cursor = paintTool === 'move'
+      ? 'move'
+      : paintTool === 'text'
       ? 'crosshair'
       : activeBrush
         ? (paintTool === 'bucket' ? BUCKET_CURSOR : PENCIL_CURSOR)
@@ -981,6 +1095,7 @@
     toolPencil.classList.toggle('active', tool === 'pencil');
     toolBucket.classList.toggle('active', tool === 'bucket');
     toolText.classList.toggle('active', tool === 'text');
+    toolMove.classList.toggle('active', tool === 'move');
     textInput.style.display = tool === 'text' ? 'inline-block' : 'none';
     textSizeSeg.style.display = tool === 'text' ? 'inline-flex' : 'none';
     textCharsBtn.style.display = tool === 'text' ? 'inline-flex' : 'none';
@@ -994,6 +1109,116 @@
   toolPencil.addEventListener('click', () => setPaintTool('pencil'));
   toolBucket.addEventListener('click', () => setPaintTool('bucket'));
   toolText.addEventListener('click', () => setPaintTool('text'));
+  toolMove.addEventListener('click', () => setPaintTool('move'));
+
+  // Symmetry: cycling toolbar button. off -> horizontal -> vertical -> quad.
+  const SYM_LABELS = { off: 'Sym', h: 'Sym: H', v: 'Sym: V', quad: 'Sym: Quad' };
+  const SYM_TITLES = {
+    off: 'Symmetry: off (click to cycle horizontal / vertical / quad mirror)',
+    h: 'Symmetry: horizontal - mirror left/right while painting',
+    v: 'Symmetry: vertical - mirror top/bottom while painting',
+    quad: 'Symmetry: quad - mirror across both axes'
+  };
+  symBtn.addEventListener('click', () => {
+    symMode = symMode === 'off' ? 'h' : symMode === 'h' ? 'v' : symMode === 'v' ? 'quad' : 'off';
+    symBtn.textContent = SYM_LABELS[symMode];
+    symBtn.title = SYM_TITLES[symMode];
+    symBtn.classList.toggle('active', symMode !== 'off');
+  });
+
+  // ---------- emoji / icon to pixel art ----------
+  // Renders an emoji through the OS color-emoji font onto an offscreen
+  // canvas, then feeds that canvas into the normal image pipeline (crop +
+  // sampling + color reduction), so a single emoji becomes a 16x16 icon.
+  // Fully self-contained - no emoji asset library, uses whatever the system
+  // font renders (Segoe UI Emoji on Windows, Apple Color Emoji on macOS...).
+  const emojiModal = document.getElementById('emojiModal');
+  const emojiInput = document.getElementById('emojiInput');
+  const emojiQuick = document.getElementById('emojiQuick');
+  const emojiQualitySeg = document.getElementById('emojiQualitySeg');
+  const emojiCancel = document.getElementById('emojiCancel');
+  const emojiConvert = document.getElementById('emojiConvert');
+  const EMOJI_QUICK = ['😀','😎','😍','🥰','😂','😉','😴','🤖','👻','💩',
+    '❤️','⭐','🌈','🔥','✨','🌸','🍎','🍕','🎈','🎵',
+    '🐶','🐱','🦄','🐼','🐸','🦋','🌵','🌙','⚽','🚀'];
+  let emojiQuality = 'smooth'; // maps to a sampling mode
+
+  for (const ch of EMOJI_QUICK) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = ch;
+    b.addEventListener('click', () => { emojiInput.value = ch; emojiInput.focus(); });
+    emojiQuick.appendChild(b);
+  }
+  emojiQualitySeg.querySelectorAll('.segment').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      emojiQuality = btn.dataset.q;
+      emojiQualitySeg.querySelectorAll('.segment').forEach((b) => b.classList.toggle('active', b === btn));
+    });
+  });
+
+  function openEmojiModal() {
+    emojiModal.style.display = 'flex';
+    emojiInput.focus();
+    emojiInput.select();
+  }
+  function closeEmojiModal() { emojiModal.style.display = 'none'; }
+  toolEmoji.addEventListener('click', openEmojiModal);
+  emojiCancel.addEventListener('click', closeEmojiModal);
+  emojiModal.addEventListener('click', (e) => { if (e.target === emojiModal) closeEmojiModal(); });
+  emojiInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); emojiConvert.click(); }
+    if (e.key === 'Escape') closeEmojiModal();
+  });
+
+  // Draw the emoji large and centered on a square canvas via the system
+  // emoji font.
+  function renderEmojiCanvas(text) {
+    const size = 128;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const cx = c.getContext('2d');
+    cx.textAlign = 'center';
+    cx.textBaseline = 'middle';
+    cx.font = '104px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
+    cx.fillText(text, size / 2, size / 2 + 4);
+    return c;
+  }
+
+  // Same page setup as loading an image file, but the source is a canvas.
+  function useSourceCanvas(canvas, name) {
+    sourceImage = canvas;
+    cropOffsetX = 0;
+    cropOffsetY = 0;
+    zoom = 1;
+    zoomSlider.value = '1';
+    zoomVal.textContent = '1.0';
+    canvasMode = 'image';
+    updateCanvasModeUI();
+    colorRemap = new Map();
+    colorsUsedKeys = [];
+    filenameInput.value = name || 'emoji';
+    dropHint.style.display = 'none';
+    leftCanvas.style.display = 'block';
+    rightCanvas.style.display = 'block';
+    leftCanvas.style.cursor = 'grab';
+    yotoHint.style.display = 'none';
+    yotoCanvas.style.display = 'block';
+    exportBtn.disabled = false;
+    centerBtn.disabled = false;
+    processAll();
+  }
+
+  emojiConvert.addEventListener('click', () => {
+    const text = emojiInput.value.trim();
+    if (!text) { emojiInput.focus(); return; }
+    // quality -> sampling mode, and reflect it in the Sampling segmented UI
+    samplingMode = emojiQuality;
+    samplingButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === samplingMode));
+    useSourceCanvas(renderEmojiCanvas(text), 'emoji');
+    closeEmojiModal();
+  });
 
   // ---------- pixel text ----------
   // Symbol glyphs ({w, rows}; MSB = left column), shared by all sizes -
@@ -1170,7 +1395,8 @@
     if (!cells.length) return;
     pushUndoSnapshot(); // once per stamp
     const value = textBrushValue();
-    for (const idx of cells) paintLayer[idx] = value === 'unpaint' ? null : value;
+    const paint = value === 'unpaint' ? null : value;
+    for (const idx of withSymmetry(cells)) paintLayer[idx] = paint;
     processAll();
   }
 
@@ -1257,13 +1483,24 @@
   paintUndoBtn.addEventListener('click', undoPaint);
 
   document.addEventListener('keydown', (e) => {
-    if (!(e.ctrlKey && e.key.toLowerCase() === 'z')) return;
     const tag = document.activeElement && document.activeElement.tagName;
     const isInInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
       (document.activeElement && document.activeElement.isContentEditable);
     if (isInInput) return;
-    e.preventDefault();
-    undoPaint();
+    if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      undoPaint();
+      return;
+    }
+    // Arrow keys nudge the whole drawing by one cell while the Move tool is
+    // active (matches the drag behaviour, one undo step per press).
+    if (paintTool === 'move') {
+      const nudge = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (nudge) {
+        e.preventDefault();
+        nudgeDrawing(nudge[0], nudge[1]);
+      }
+    }
   });
 
   paintClearBtn.addEventListener('click', () => {
@@ -1332,6 +1569,28 @@
     return null;
   }
 
+  // Every cell index the current symmetry mode maps (x,y) onto, including
+  // itself. H mirrors across the vertical centre, V across the horizontal
+  // centre, Quad does both. Deduped so a centre pixel isn't written twice.
+  const M = FINAL_SIZE - 1;
+  function symIndices(x, y) {
+    const set = new Set([y * FINAL_SIZE + x]);
+    if (symMode === 'h' || symMode === 'quad') set.add(y * FINAL_SIZE + (M - x));
+    if (symMode === 'v' || symMode === 'quad') set.add((M - y) * FINAL_SIZE + x);
+    if (symMode === 'quad') set.add((M - y) * FINAL_SIZE + (M - x));
+    return set;
+  }
+  // Expand a set/array of cell indices to include every symmetric partner.
+  function withSymmetry(indices) {
+    if (symMode === 'off') return indices;
+    const out = new Set();
+    for (const idx of indices) {
+      const x = idx % FINAL_SIZE, y = (idx - x) / FINAL_SIZE;
+      for (const s of symIndices(x, y)) out.add(s);
+    }
+    return out;
+  }
+
   function paintAt(clientX, clientY) {
     const rect = rightCanvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
@@ -1340,7 +1599,8 @@
     if (x < 0 || y < 0 || x >= FINAL_SIZE || y >= FINAL_SIZE) return;
     const value = brushValue();
     if (value === null) return;
-    paintLayer[y * FINAL_SIZE + x] = value === 'unpaint' ? null : value;
+    const paint = value === 'unpaint' ? null : value;
+    for (const idx of symIndices(x, y)) paintLayer[idx] = paint;
     processAll();
   }
 
@@ -1373,12 +1633,14 @@
     const targetKey = visiblePixelKey(data, startIdx);
 
     pushUndoSnapshot(); // once per fill
+    const paint = value === 'unpaint' ? null : value;
+    const filled = [];
     const visited = new Uint8Array(FINAL_SIZE * FINAL_SIZE);
     const stack = [startIdx];
     visited[startIdx] = 1;
     while (stack.length) {
       const idx = stack.pop();
-      paintLayer[idx] = value === 'unpaint' ? null : value;
+      filled.push(idx);
       const cx = idx % FINAL_SIZE, cy = (idx - cx) / FINAL_SIZE;
       const neighbors = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
       for (const [nx, ny] of neighbors) {
@@ -1390,6 +1652,40 @@
         stack.push(nIdx);
       }
     }
+    for (const idx of withSymmetry(filled)) paintLayer[idx] = paint;
+    processAll();
+  }
+
+  // Cell (col,row) under a client point, or null if off-canvas.
+  function cellFromClient(clientX, clientY) {
+    const rect = rightCanvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    return {
+      x: Math.floor((clientX - rect.left) / (rect.width / FINAL_SIZE)),
+      y: Math.floor((clientY - rect.top) / (rect.height / FINAL_SIZE))
+    };
+  }
+
+  // ---------- move the whole drawing ----------
+  // Shifts every painted cell by (dx,dy); cells pushed off-grid are dropped,
+  // vacated cells become empty. Returns a fresh layer, never mutates `base`.
+  function shiftedLayer(base, dx, dy) {
+    const out = new Array(FINAL_SIZE * FINAL_SIZE).fill(null);
+    for (let idx = 0; idx < base.length; idx++) {
+      if (base[idx] === null) continue;
+      const x = idx % FINAL_SIZE, y = (idx - x) / FINAL_SIZE;
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= FINAL_SIZE || ny >= FINAL_SIZE) continue;
+      out[ny * FINAL_SIZE + nx] = base[idx];
+    }
+    return out;
+  }
+  let moveBase = null;   // paint layer snapshot at drag start
+  let moveStart = null;  // cell where the move drag began
+
+  function nudgeDrawing(dx, dy) {
+    pushUndoSnapshot();
+    paintLayer = shiftedLayer(paintLayer, dx, dy);
     processAll();
   }
 
@@ -1399,6 +1695,17 @@
   rightCanvas.addEventListener('pointerdown', (e) => {
     // No sourceImage gate: painting works standalone from page load, before
     // any image is ever loaded (see processAll's standalone branch).
+    if (paintTool === 'move') {
+      const c = cellFromClient(e.clientX, e.clientY);
+      if (!c) return;
+      pushUndoSnapshot(); // once per move gesture
+      moveBase = paintLayer.slice();
+      moveStart = c;
+      isPainting = true;
+      try { rightCanvas.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+      return;
+    }
     if (paintTool === 'text') {
       // Works without an armed brush (falls back to black); single click
       // stamps, no drag.
@@ -1421,6 +1728,14 @@
   });
 
   rightCanvas.addEventListener('pointermove', (e) => {
+    if (paintTool === 'move') {
+      if (!isPainting || !moveBase || !moveStart) return;
+      const c = cellFromClient(e.clientX, e.clientY);
+      if (!c) return;
+      paintLayer = shiftedLayer(moveBase, c.x - moveStart.x, c.y - moveStart.y);
+      processAll();
+      return;
+    }
     if (paintTool === 'text') {
       drawTextPreviewAt(e.clientX, e.clientY);
       return;
@@ -1435,6 +1750,8 @@
 
   function endPaint(e) {
     isPainting = false;
+    moveBase = null;
+    moveStart = null;
     if (e && rightCanvas.hasPointerCapture(e.pointerId)) {
       rightCanvas.releasePointerCapture(e.pointerId);
     }
