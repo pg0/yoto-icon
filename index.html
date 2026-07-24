@@ -477,9 +477,21 @@
     bottom: 8px;
     font-size: 11px;
     color: var(--text-dim);
-    opacity: 0.6;
-    pointer-events: none;
+    opacity: 0.7;
     user-select: none;
+  }
+  .app-version .ver-sep {
+    margin: 0 4px;
+    opacity: 0.5;
+  }
+  .app-version a {
+    color: var(--text-dim);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--text-dim);
+  }
+  .app-version a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
   }
   .palette-strip h2 {
     font-size: 11px;
@@ -957,12 +969,13 @@
     <div class="swatches" id="colorsUsedSwatches"></div>
   </div>
 
-  <footer class="attribution">
-    by Patrick Gawron &middot; <a href="https://github.com/pg0/yoto-icon">github.com/pg0/yoto-icon</a>
-  </footer>
 </main>
 
-<div class="app-version" id="appVersion">v1.3.0</div>
+<div class="app-version" id="appVersion">
+  <span class="ver-num">v1.3.0</span>
+  <span class="ver-sep">&middot;</span>
+  by Patrick Gawron &middot; <a href="https://github.com/pg0/yoto-icon">github.com/pg0/yoto-icon</a>
+</div>
 
 <div class="emoji-modal" id="emojiModal" style="display:none">
   <div class="emoji-card">
@@ -1392,6 +1405,16 @@
   // "DE"/"FR" text - so those are drawn procedurally as stripe/cross flags.
   const GENERIC_FLAGS = ['🏁','🚩','🏳️','🏴','🏴‍☠️','🏳️‍🌈','🏳️‍⚧️'];
   const FLAGS = [
+    { n: 'USA', t: 'usa', c: ['#B22234', '#FFFFFF', '#3C3B6E'] },
+    { n: 'United Kingdom', t: 'uk', c: ['#012169', '#FFFFFF', '#C8102E'] },
+    { n: 'Canada', t: 'canada', c: ['#FF0000', '#FFFFFF'] },
+    { n: 'European Union', t: 'eu', c: ['#003399', '#FFCC00'] },
+    { n: 'Brazil', t: 'brazil', c: ['#009C3B', '#FFDF00', '#002776'] },
+    { n: 'China', t: 'china', c: ['#DE2910', '#FFDE00'] },
+    { n: 'India', t: 'india', c: ['#FF9933', '#FFFFFF', '#138808', '#000080'] },
+    { n: 'Greece', t: 'greece', c: ['#0D5EAF', '#FFFFFF'] },
+    { n: 'Czech Republic', t: 'czech', c: ['#FFFFFF', '#D7141A', '#11457E'] },
+    { n: 'Portugal', t: 'portugal', c: ['#006600', '#FF0000', '#FFCC00'] },
     { n: 'Germany', t: 'h', c: ['#000000', '#DD0000', '#FFCE00'] },
     { n: 'Austria', t: 'h', c: ['#ED2939', '#FFFFFF', '#ED2939'] },
     { n: 'Netherlands', t: 'h', c: ['#AE1C28', '#FFFFFF', '#21468B'] },
@@ -1435,7 +1458,121 @@
     const ctx = out.getContext('2d', { willReadFrequently: true });
     ctx.translate(ox || 0, oy || 0);
     const off = Math.round((FINAL_SIZE - size) / 2);
-    if (def.t === 'o') {
+    const x = off, y = off, s = size, cx = off + size / 2, cy = off + size / 2;
+    // Clip to the flag square so thick diagonal strokes (UK) never bleed into
+    // neighbouring icon pixels when the flag is inset (size < 16).
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, s, s); ctx.clip();
+    if (def.t === 'usa') {
+      // 7 stripes + blue canton with a grid of white star-dots
+      const stripes = 7;
+      for (let i = 0; i < stripes; i++) {
+        ctx.fillStyle = i % 2 === 0 ? def.c[0] : def.c[1];
+        const y0 = y + Math.round(i * s / stripes), y1 = y + Math.round((i + 1) * s / stripes);
+        ctx.fillRect(x, y0, s, y1 - y0);
+      }
+      const cw = Math.round(s * 0.42), ch = y + Math.round(4 * s / stripes) - y;
+      ctx.fillStyle = def.c[2];
+      ctx.fillRect(x, y, cw, ch);
+      ctx.fillStyle = def.c[1];
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+        const px = x + Math.round((cw / 5) * (c + 1) - 1), py = y + Math.round((ch / 4) * (r + 1) - 1);
+        ctx.fillRect(px, py, 1, 1);
+      }
+    } else if (def.t === 'uk') {
+      const [blue, white, red] = def.c;
+      ctx.fillStyle = blue; ctx.fillRect(x, y, s, s);
+      ctx.strokeStyle = white; ctx.lineWidth = Math.max(2, s * 0.30);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + s, y + s); ctx.moveTo(x + s, y); ctx.lineTo(x, y + s); ctx.stroke();
+      ctx.strokeStyle = red; ctx.lineWidth = Math.max(1, s * 0.11);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + s, y + s); ctx.moveTo(x + s, y); ctx.lineTo(x, y + s); ctx.stroke();
+      ctx.fillStyle = white;
+      const wc = Math.max(2, Math.round(s * 0.34));
+      ctx.fillRect(x, Math.round(cy - wc / 2), s, wc); ctx.fillRect(Math.round(cx - wc / 2), y, wc, s);
+      ctx.fillStyle = red;
+      const rc = Math.max(1, Math.round(s * 0.18));
+      ctx.fillRect(x, Math.round(cy - rc / 2), s, rc); ctx.fillRect(Math.round(cx - rc / 2), y, rc, s);
+    } else if (def.t === 'canada') {
+      const [red, white] = def.c;
+      const b = Math.round(s * 0.27);
+      ctx.fillStyle = red; ctx.fillRect(x, y, b, s); ctx.fillRect(x + s - b, y, b, s);
+      ctx.fillStyle = white; ctx.fillRect(x + b, y, s - 2 * b, s);
+      // simplified maple leaf (a compact red mark - reads as Canada at 16px)
+      ctx.fillStyle = red;
+      ctx.beginPath();
+      ctx.moveTo(cx, y + s * 0.22);
+      ctx.lineTo(cx + s * 0.14, y + s * 0.44);
+      ctx.lineTo(cx + s * 0.22, y + s * 0.40);
+      ctx.lineTo(cx + s * 0.16, y + s * 0.60);
+      ctx.lineTo(cx, y + s * 0.56);
+      ctx.lineTo(cx - s * 0.16, y + s * 0.60);
+      ctx.lineTo(cx - s * 0.22, y + s * 0.40);
+      ctx.lineTo(cx - s * 0.14, y + s * 0.44);
+      ctx.closePath(); ctx.fill();
+      ctx.fillRect(Math.round(cx - Math.max(1, s * 0.03)), Math.round(y + s * 0.54), Math.max(1, Math.round(s * 0.06)), Math.round(s * 0.20));
+    } else if (def.t === 'eu') {
+      const [blue, gold] = def.c;
+      ctx.fillStyle = blue; ctx.fillRect(x, y, s, s);
+      ctx.fillStyle = gold;
+      const R = s * 0.30;
+      for (let k = 0; k < 12; k++) {
+        const a = k * Math.PI / 6 - Math.PI / 2;
+        ctx.fillRect(Math.round(cx + Math.cos(a) * R), Math.round(cy + Math.sin(a) * R), 1, 1);
+      }
+    } else if (def.t === 'brazil') {
+      const [green, gold, blue] = def.c;
+      ctx.fillStyle = green; ctx.fillRect(x, y, s, s);
+      ctx.fillStyle = gold;
+      ctx.beginPath();
+      ctx.moveTo(cx, y + s * 0.12); ctx.lineTo(x + s * 0.88, cy); ctx.lineTo(cx, y + s * 0.88); ctx.lineTo(x + s * 0.12, cy);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = blue;
+      ctx.beginPath(); ctx.arc(cx, cy, s * 0.19, 0, Math.PI * 2); ctx.fill();
+    } else if (def.t === 'china') {
+      const [red, gold] = def.c;
+      ctx.fillStyle = red; ctx.fillRect(x, y, s, s);
+      ctx.fillStyle = gold;
+      ctx.fillRect(Math.round(x + s * 0.13), Math.round(y + s * 0.16), Math.max(2, Math.round(s * 0.22)), Math.max(2, Math.round(s * 0.22)));
+      const sm = Math.max(1, Math.round(s * 0.09));
+      [[0.42, 0.09], [0.54, 0.20], [0.54, 0.36], [0.42, 0.47]].forEach(([fx, fy]) => {
+        ctx.fillRect(Math.round(x + s * fx), Math.round(y + s * fy), sm, sm);
+      });
+    } else if (def.t === 'greece') {
+      const [blue, white] = def.c;
+      const stripes = 5;
+      for (let i = 0; i < stripes; i++) {
+        ctx.fillStyle = i % 2 === 0 ? blue : white;
+        const y0 = y + Math.round(i * s / stripes), y1 = y + Math.round((i + 1) * s / stripes);
+        ctx.fillRect(x, y0, s, y1 - y0);
+      }
+      const cs = Math.round(s * 0.4);
+      ctx.fillStyle = blue; ctx.fillRect(x, y, cs, cs);
+      ctx.fillStyle = white;
+      const cw = Math.max(1, Math.round(cs * 0.26));
+      ctx.fillRect(x + Math.round((cs - cw) / 2), y, cw, cs);
+      ctx.fillRect(x, y + Math.round((cs - cw) / 2), cs, cw);
+    } else if (def.t === 'czech') {
+      const [white, red, blue] = def.c;
+      ctx.fillStyle = white; ctx.fillRect(x, y, s, Math.round(s / 2));
+      ctx.fillStyle = red; ctx.fillRect(x, y + Math.round(s / 2), s, s - Math.round(s / 2));
+      ctx.fillStyle = blue;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + s * 0.5, cy); ctx.lineTo(x, y + s); ctx.closePath(); ctx.fill();
+    } else if (def.t === 'portugal') {
+      const [green, red, gold] = def.c;
+      const gw = Math.round(s * 0.4);
+      ctx.fillStyle = green; ctx.fillRect(x, y, gw, s);
+      ctx.fillStyle = red; ctx.fillRect(x + gw, y, s - gw, s);
+      ctx.fillStyle = gold;
+      ctx.beginPath(); ctx.arc(x + gw, cy, s * 0.15, 0, Math.PI * 2); ctx.fill();
+    } else if (def.t === 'india') {
+      const [saffron, white, green, navy] = def.c;
+      const th = Math.round(s / 3);
+      ctx.fillStyle = saffron; ctx.fillRect(x, y, s, th);
+      ctx.fillStyle = white; ctx.fillRect(x, y + th, s, th);
+      ctx.fillStyle = green; ctx.fillRect(x, y + 2 * th, s, s - 2 * th);
+      ctx.strokeStyle = navy; ctx.lineWidth = Math.max(1, s * 0.05);
+      ctx.beginPath(); ctx.arc(cx, cy, s * 0.10, 0, Math.PI * 2); ctx.stroke();
+    } else if (def.t === 'o') {
       // solid field + centred disc (Japan / Bangladesh / Palau)
       ctx.fillStyle = def.c[0];
       ctx.fillRect(off, off, size, size);
@@ -1466,6 +1603,7 @@
         }
       }
     }
+    ctx.restore();
     return out;
   }
 
