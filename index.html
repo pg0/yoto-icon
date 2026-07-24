@@ -604,8 +604,8 @@
     flex: 1;
   }
   .emoji-preview {
-    width: 56px;
-    height: 56px;
+    width: 66px;
+    height: 66px;
     flex-shrink: 0;
     image-rendering: pixelated;
     border: 1px solid var(--panel-border);
@@ -935,7 +935,7 @@
   <div class="emoji-card">
     <div class="emoji-title">Emoji to pixel art</div>
     <div class="emoji-top">
-      <canvas id="emojiPreview" class="emoji-preview" width="16" height="16"></canvas>
+      <canvas id="emojiPreview" class="emoji-preview" width="24" height="24"></canvas>
       <input type="text" id="emojiInput" class="emoji-input" placeholder="Type or paste" maxlength="8" spellcheck="false">
     </div>
     <div class="emoji-tabs" id="emojiTabs"></div>
@@ -1367,13 +1367,14 @@
     { n: 'Finland', t: 'x', c: ['#FFFFFF', '#003580'] },
     { n: 'Switzerland', t: '+', c: ['#D52B1E', '#FFFFFF'] }
   ];
-  // Draw a flag into a 16x16 canvas at `size` px, centered.
-  function flagCanvas(def, size) {
+  // Draw a flag at `size` px, centered in a `canvasSize` square.
+  function flagCanvas(def, size, canvasSize) {
+    canvasSize = canvasSize || FINAL_SIZE;
     const out = document.createElement('canvas');
-    out.width = FINAL_SIZE;
-    out.height = FINAL_SIZE;
+    out.width = canvasSize;
+    out.height = canvasSize;
     const ctx = out.getContext('2d', { willReadFrequently: true });
-    const off = Math.floor((FINAL_SIZE - size) / 2);
+    const off = Math.round((canvasSize - size) / 2);
     if (def.t === 'x' || def.t === '+') {
       ctx.fillStyle = def.c[0];
       ctx.fillRect(off, off, size, size);
@@ -1494,13 +1495,17 @@
   // Build the final 16x16 icon: render the emoji big, downscale it to `size`
   // px with the chosen quality, then centre that in the 16x16 grid. Size < 16
   // makes the emoji smaller (resizable insert); size 16 fills the icon.
-  function buildEmojiCanvas(text, mode, size) {
+  // Render into a `canvasSize` square, the emoji scaled to `size` px and
+  // centred. canvasSize > FINAL_SIZE lets the preview show the overscan that
+  // the 16x16 export will crop off.
+  function buildEmojiCanvas(text, mode, size, canvasSize) {
+    canvasSize = canvasSize || FINAL_SIZE;
     const src = renderEmojiCanvas(text);
     const out = document.createElement('canvas');
-    out.width = FINAL_SIZE;
-    out.height = FINAL_SIZE;
+    out.width = canvasSize;
+    out.height = canvasSize;
     const octx = out.getContext('2d', { willReadFrequently: true });
-    const off = Math.floor((FINAL_SIZE - size) / 2);
+    const off = Math.round((canvasSize - size) / 2);
     if (mode === 'dominant' || mode === 'median') {
       const sctx = src.getContext('2d', { willReadFrequently: true });
       const sdata = sctx.getImageData(0, 0, src.width, src.height);
@@ -1517,22 +1522,41 @@
     return out;
   }
 
-  // The 16x16 icon for whatever is currently armed - a procedural flag or an
-  // emoji from the input. Returns null if there's nothing to render.
-  function currentIconCanvas() {
-    if (emojiFlag) return flagCanvas(emojiFlag, emojiSize);
+  // The icon for whatever is armed - a procedural flag or an emoji - rendered
+  // into a `canvasSize` square. Returns null if there's nothing to render.
+  function iconCanvasAt(canvasSize) {
+    if (emojiFlag) return flagCanvas(emojiFlag, emojiSize, canvasSize);
     const text = emojiInput.value.trim();
     if (!text) return null;
-    return buildEmojiCanvas(text, emojiQuality, emojiSize);
+    return buildEmojiCanvas(text, emojiQuality, emojiSize, canvasSize);
   }
 
-  // Live preview reacting to the current emoji/flag + quality + size choice.
+  // Live preview: shows the icon on a slightly larger canvas so overscan is
+  // visible, dims everything outside the 16x16 export area, and outlines that
+  // usable area - so you can fit/resize the emoji before inserting.
+  const PREVIEW_BUFFER = 24; // 16 usable + 4px overscan margin each side
+  const PREVIEW_MARGIN = (PREVIEW_BUFFER - FINAL_SIZE) / 2;
   function renderEmojiPreview() {
-    emojiPreviewCtx.clearRect(0, 0, FINAL_SIZE, FINAL_SIZE);
-    const icon = currentIconCanvas();
-    if (!icon) return;
-    emojiPreviewCtx.imageSmoothingEnabled = false;
-    emojiPreviewCtx.drawImage(icon, 0, 0);
+    const ctx = emojiPreviewCtx;
+    ctx.clearRect(0, 0, PREVIEW_BUFFER, PREVIEW_BUFFER);
+    const icon = iconCanvasAt(PREVIEW_BUFFER);
+    if (icon) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(icon, 0, 0);
+    }
+    // dim the overscan (cropped) border
+    const m = PREVIEW_MARGIN, F = FINAL_SIZE, B = PREVIEW_BUFFER;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, B, m);
+    ctx.fillRect(0, B - m, B, m);
+    ctx.fillRect(0, m, m, F);
+    ctx.fillRect(B - m, m, m, F);
+    // 1px outline of the usable 16x16 export area
+    ctx.fillStyle = 'rgba(90,169,255,0.95)';
+    ctx.fillRect(m, m, F, 1);
+    ctx.fillRect(m, m + F - 1, F, 1);
+    ctx.fillRect(m, m, 1, F);
+    ctx.fillRect(m + F - 1, m, 1, F);
   }
 
   // Insert stamps the emoji onto the PAINT layer (not the source image), so
@@ -1540,7 +1564,7 @@
   // recolor - like anything else painted. Opaque pixels are written; the
   // transparent surround is left alone so the image below shows through.
   emojiConvert.addEventListener('click', () => {
-    const out = currentIconCanvas();
+    const out = iconCanvasAt(FINAL_SIZE);
     if (!out) { emojiInput.focus(); return; }
     const data = out.getContext('2d', { willReadFrequently: true })
       .getImageData(0, 0, FINAL_SIZE, FINAL_SIZE).data;
@@ -2710,6 +2734,22 @@
     return imageData;
   }
 
+  // Color reduction on whatever is currently on rightCanvas. Runs AFTER the
+  // paint layer is composited so "Colors=N" also quantizes inserted emoji and
+  // hand-painted pixels - the <=N-colors guarantee then holds for the whole
+  // icon, not just the source image.
+  function applyColorReductionStage() {
+    const reduceVal = colorsValue;
+    if (reduceVal === 'off') return;
+    const imgData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
+    if (ditherToggle.checked) {
+      applyColorReductionDither(imgData, parseInt(reduceVal, 10));
+    } else {
+      applyColorReduction(imgData, parseInt(reduceVal, 10));
+    }
+    rightCtx.putImageData(imgData, 0, 0);
+  }
+
   function processAll() {
     if (!sourceImage) {
       // Standalone pixel-editor mode: no image loaded (yet). Skip the whole
@@ -2725,6 +2765,9 @@
         rightCtx.fillRect(0, 0, FINAL_SIZE, FINAL_SIZE);
       }
       applyPaintStage();
+      // Color reduction applies to the painted content too (an inserted emoji
+      // on a blank canvas lives entirely in the paint layer).
+      applyColorReductionStage();
       // The paint layer IS the image here, so the "Output color map" reads
       // (and remaps) the painted pixels - snapshot pre-remap, exactly like
       // the real pipeline keys its swatches on the pre-remap stage.
@@ -2787,21 +2830,6 @@
     // strip, only the actual output and "Output color map" do.
     const preReductionImageData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
 
-    // 4. color reduction (+ optional dither) - runs on the TRUE 16x16
-    // stage, right after the downscale. Quantizing at the true output
-    // resolution is the only way "Colors=X" genuinely guarantees <=X
-    // unique colors in the final icon.
-    const reduceVal = colorsValue;
-    if (reduceVal !== 'off') {
-      const imgData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
-      if (ditherToggle.checked) {
-        applyColorReductionDither(imgData, parseInt(reduceVal, 10));
-      } else {
-        applyColorReduction(imgData, parseInt(reduceVal, 10));
-      }
-      rightCtx.putImageData(imgData, 0, 0);
-    }
-
     // 4b. canvas base-mode override - the "Canvas" toolbar button lets the
     // user ignore/hide the processed input image and paint on a blank or
     // solid base instead, without ever touching the paint layer itself.
@@ -2819,12 +2847,16 @@
     // transparency. With BG color off, that hole is the final result.
     applyPaintStage();
 
-    // 6a. color-map snapshot + remap - AFTER paint, so painted colors show
-    // up in the "Output color map" and are remappable exactly like pipeline
-    // colors (same order as the standalone branch). The snapshot is the
-    // pre-remap identity the swatches are keyed on, so re-editing an
-    // already-remapped swatch always resolves back to the same original
-    // color instead of chaining off whatever it currently displays.
+    // 6a. color reduction - now runs on the composite (image + paint layer),
+    // so "Colors=N" quantizes inserted emoji and painted pixels too, and the
+    // <=N guarantee holds for the whole final icon.
+    applyColorReductionStage();
+
+    // 6b. color-map snapshot + remap - AFTER paint + reduction, so painted
+    // colors show up in the "Output color map" and are remappable exactly like
+    // pipeline colors. The snapshot is the pre-remap identity the swatches are
+    // keyed on, so re-editing an already-remapped swatch always resolves back
+    // to the same original color instead of chaining off what it displays.
     const rawImageData = rightCtx.getImageData(0, 0, FINAL_SIZE, FINAL_SIZE);
     applyColorRemap(rightCtx);
     updateColorsUsedSwatches(rawImageData);
