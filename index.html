@@ -937,7 +937,13 @@
       </div>
     </div>
     <div class="panel">
-      <div class="panel-label">Yoto preview</div>
+      <div class="panel-label" style="display:flex; align-items:center; justify-content:space-between;">
+        <span>Yoto preview</span>
+        <div class="segmented" id="previewSegmented">
+          <button type="button" class="segment" data-preview="player">Player</button>
+          <button type="button" class="segment active" data-preview="mini">Mini</button>
+        </div>
+      </div>
       <div class="panel-body yoto-preview-body">
         <div class="drop-hint" id="yotoHint">No image yet</div>
         <canvas id="yotoCanvas" width="370" height="372"></canvas>
@@ -1136,7 +1142,8 @@
   // preview toggles Mini <-> Player. The Player's LED screen is rendered with
   // larger, diffused glowing pixels (frosted-screen look), unlike the Mini's
   // crisp render.
-  let previewMode = 'mini'; // 'mini' | 'player'
+  // Remembered across sessions (preference).
+  let previewMode = localStorage.getItem('yotoPreviewMode') === 'player' ? 'player' : 'mini';
   let yotoPlayerLoaded = false;
   const yotoPlayerPhoto = new Image();
   yotoPlayerPhoto.onload = () => {
@@ -1144,12 +1151,25 @@
     if (previewMode === 'player') renderYotoPreview();
   };
   yotoPlayerPhoto.src = './yoto-player.svg';
+  const previewSegmented = document.getElementById('previewSegmented');
+  const previewButtons = Array.from(previewSegmented.querySelectorAll('.segment'));
+  function setPreviewMode(mode) {
+    previewMode = mode;
+    localStorage.setItem('yotoPreviewMode', mode);
+    previewButtons.forEach((b) => b.classList.toggle('active', b.dataset.preview === mode));
+    renderYotoPreview();
+  }
+  previewButtons.forEach((btn) => {
+    btn.addEventListener('click', () => setPreviewMode(btn.dataset.preview));
+  });
+  // Clicking the preview itself still toggles between the two.
   yotoCanvas.style.cursor = 'pointer';
   yotoCanvas.title = 'Click to switch Mini / Player';
   yotoCanvas.addEventListener('click', () => {
-    previewMode = previewMode === 'mini' ? 'player' : 'mini';
-    renderYotoPreview();
+    setPreviewMode(previewMode === 'mini' ? 'player' : 'mini');
   });
+  // Sync the active button (and render) to the remembered preference on load.
+  setPreviewMode(previewMode);
 
   let sourceImage = null;
   let cropOffsetX = 0;
