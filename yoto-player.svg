@@ -38,51 +38,51 @@
       <feGaussianBlur stdDeviation="2.5"/>
     </filter>
     <clipPath id="bodyClip">
-      <rect x="48" y="82" width="274" height="274" rx="54" ry="54"/>
+      <rect x="16" y="30" width="338" height="328" rx="68" ry="68"/>
     </clipPath>
   </defs>
 
   <!-- floor shadow -->
-  <ellipse cx="185" cy="360" rx="140" ry="12" fill="#2b2b28" opacity="0.26" filter="url(#blurBig)"/>
-  <ellipse cx="185" cy="358" rx="104" ry="7" fill="#2b2b28" opacity="0.18" filter="url(#blurSmall)"/>
+  <ellipse cx="185" cy="363" rx="150" ry="11" fill="#2b2b28" opacity="0.26" filter="url(#blurBig)"/>
+  <ellipse cx="185" cy="361" rx="112" ry="7" fill="#2b2b28" opacity="0.18" filter="url(#blurSmall)"/>
 
-  <!-- knobs (behind body) -->
-  <g transform="rotate(-9 80 82)">
-    <rect x="60" y="58" width="40" height="42" rx="15" ry="15" fill="url(#knobGrad)"/>
-    <ellipse cx="80" cy="64" rx="14" ry="5" fill="#f6a884" opacity="0.85"/>
-    <rect x="65" y="62" width="4.5" height="20" rx="2.25" fill="#ffffff" opacity="0.35"/>
+  <!-- knobs (behind body), short button pucks -->
+  <g transform="rotate(-9 78 34)">
+    <rect x="57" y="8" width="42" height="34" rx="15" ry="15" fill="url(#knobGrad)"/>
+    <ellipse cx="78" cy="14" rx="15" ry="5" fill="#f6a884" opacity="0.85"/>
+    <rect x="62" y="12" width="4.5" height="16" rx="2.25" fill="#ffffff" opacity="0.35"/>
   </g>
-  <g transform="rotate(9 290 82)">
-    <rect x="270" y="58" width="40" height="42" rx="15" ry="15" fill="url(#knobGrad)"/>
-    <ellipse cx="290" cy="64" rx="14" ry="5" fill="#f6a884" opacity="0.85"/>
-    <rect x="275" y="62" width="4.5" height="20" rx="2.25" fill="#ffffff" opacity="0.35"/>
+  <g transform="rotate(9 292 34)">
+    <rect x="271" y="8" width="42" height="34" rx="15" ry="15" fill="url(#knobGrad)"/>
+    <ellipse cx="292" cy="14" rx="15" ry="5" fill="#f6a884" opacity="0.85"/>
+    <rect x="276" y="12" width="4.5" height="16" rx="2.25" fill="#ffffff" opacity="0.35"/>
   </g>
 
   <!-- body -->
-  <rect x="48" y="82" width="274" height="274" rx="54" ry="54" fill="url(#bodyGrad)" stroke="#d5d4cf" stroke-width="1.5"/>
+  <rect x="16" y="30" width="338" height="328" rx="68" ry="68" fill="url(#bodyGrad)" stroke="#d5d4cf" stroke-width="1.5"/>
 
   <!-- body shading, clipped to silhouette, kept outside the screen interior -->
   <g clip-path="url(#bodyClip)">
-    <rect x="66" y="88" width="238" height="40" rx="20" fill="url(#sheenGrad)" opacity="0.8"/>
-    <rect x="48" y="326" width="274" height="30" fill="url(#aoGrad)"/>
-    <rect x="48" y="106" width="32" height="230" fill="url(#sideGradL)"/>
-    <rect x="290" y="106" width="32" height="230" fill="url(#sideGradR)"/>
-    <ellipse cx="80" cy="90" rx="22" ry="6" fill="#000000" opacity="0.14" filter="url(#blurSmall)" transform="rotate(-18 80 90)"/>
-    <ellipse cx="290" cy="90" rx="22" ry="6" fill="#000000" opacity="0.14" filter="url(#blurSmall)" transform="rotate(18 290 90)"/>
+    <rect x="40" y="36" width="290" height="46" rx="22" fill="url(#sheenGrad)" opacity="0.8"/>
+    <rect x="16" y="330" width="338" height="28" fill="url(#aoGrad)"/>
+    <rect x="16" y="60" width="38" height="270" fill="url(#sideGradL)"/>
+    <rect x="316" y="60" width="38" height="270" fill="url(#sideGradR)"/>
+    <ellipse cx="78" cy="40" rx="24" ry="6" fill="#000000" opacity="0.14" filter="url(#blurSmall)" transform="rotate(-18 78 40)"/>
+    <ellipse cx="292" cy="40" rx="24" ry="6" fill="#000000" opacity="0.14" filter="url(#blurSmall)" transform="rotate(18 292 40)"/>
   </g>
   <!-- top rim light -->
   <g clip-path="url(#bodyClip)">
-    <rect x="51" y="85" width="268" height="268" rx="51" ry="51" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.55"/>
+    <rect x="19" y="33" width="332" height="322" rx="65" ry="65" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.55"/>
   </g>
 
   <!-- subtle card slot slit on the top edge (no card inserted) -->
-  <rect x="150" y="79" width="70" height="7" rx="3.5" fill="#45443f" opacity="0.85"/>
-  <rect x="152" y="86.5" width="66" height="1.6" rx="0.8" fill="#ffffff" opacity="0.5"/>
+  <rect x="149" y="25" width="72" height="7" rx="3.5" fill="#45443f" opacity="0.85"/>
+  <rect x="151" y="32.5" width="68" height="1.6" rx="0.8" fill="#ffffff" opacity="0.5"/>
 
   <!-- recessed bezel around the screen -->
-  <rect x="60" y="94" width="250" height="250" rx="30" ry="30" fill="url(#bezelGrad)" stroke="#c7c6bf" stroke-width="1"/>
-  <rect x="69" y="103" width="232" height="232" rx="23" ry="23" fill="none" stroke="#a5a49b" stroke-width="2"/>
+  <rect x="35" y="44" width="300" height="300" rx="34" ry="34" fill="url(#bezelGrad)" stroke="#c7c6bf" stroke-width="1"/>
+  <rect x="43" y="52" width="284" height="284" rx="27" ry="27" fill="none" stroke="#a5a49b" stroke-width="2"/>
 
   <!-- LED screen: exact bounds, flat fill, nothing inside -->
-  <rect x="70" y="104" width="230" height="230" rx="22" ry="22" fill="#cfcfc6"/>
+  <rect x="44" y="53" width="282" height="282" rx="26" ry="26" fill="#cfcfc6"/>
 </svg>
