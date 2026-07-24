@@ -610,19 +610,22 @@
     font-size: 11px;
   }
   .emoji-preview {
-    width: 150px;
-    height: 150px;
+    /* 16x16 icon shown at an exact 9x (144px) so pixels stay crisp squares */
+    width: 144px;
+    height: 144px;
     flex-shrink: 0;
+    cursor: move;
+    touch-action: none;
     image-rendering: pixelated;
     border: 1px solid var(--panel-border);
-    border-radius: 6px;
+    border-radius: 4px;
     background-image:
       linear-gradient(45deg, var(--checker-a) 25%, transparent 25%),
       linear-gradient(-45deg, var(--checker-a) 25%, transparent 25%),
       linear-gradient(45deg, transparent 75%, var(--checker-a) 75%),
       linear-gradient(-45deg, transparent 75%, var(--checker-a) 75%);
-    background-size: 12px 12px;
-    background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+    background-size: 18px 18px;
+    background-position: 0 0, 0 9px, 9px -9px, -9px 0px;
     background-color: var(--checker-b);
   }
   .emoji-tabs {
@@ -941,7 +944,7 @@
   <div class="emoji-card">
     <div class="emoji-title">Emoji to pixel art</div>
     <div class="emoji-top">
-      <canvas id="emojiPreview" class="emoji-preview" width="24" height="24"></canvas>
+      <canvas id="emojiPreview" class="emoji-preview" width="16" height="16" title="Drag to reposition"></canvas>
       <input type="text" id="emojiInput" class="emoji-input" placeholder="paste" maxlength="8" spellcheck="false" title="Type or paste an emoji">
     </div>
     <div class="emoji-tabs" id="emojiTabs"></div>
@@ -1331,6 +1334,7 @@
   let emojiQuality = 'smooth'; // maps to a sampling mode
   let emojiSize = 16; // px the emoji occupies inside the 16x16 icon (centered)
   let emojiFlag = null; // a procedural flag def, when armed instead of an emoji
+  let emojiOffX = 0, emojiOffY = 0; // drag offset (icon px) inside the 16x16
 
   emojiSizeSlider.addEventListener('input', () => {
     emojiSize = parseInt(emojiSizeSlider.value, 10);
@@ -1367,21 +1371,43 @@
     { n: 'Belgium', t: 'v', c: ['#000000', '#FDDA24', '#EF3340'] },
     { n: 'Romania', t: 'v', c: ['#002B7F', '#FCD116', '#CE1126'] },
     { n: 'Lithuania', t: 'h', c: ['#FDB913', '#006A44', '#C1272D'] },
+    { n: 'Estonia', t: 'h', c: ['#0072CE', '#000000', '#FFFFFF'] },
+    { n: 'Luxembourg', t: 'h', c: ['#ED2939', '#FFFFFF', '#00A1DE'] },
+    { n: 'Yemen', t: 'h', c: ['#CE1126', '#FFFFFF', '#000000'] },
+    { n: 'Armenia', t: 'h', c: ['#D90012', '#0033A0', '#F2A800'] },
+    { n: 'Bolivia', t: 'h', c: ['#D52B1E', '#F9E300', '#007A33'] },
+    { n: 'Gabon', t: 'h', c: ['#009E60', '#FCD116', '#3A75C4'] },
+    { n: 'Sierra Leone', t: 'h', c: ['#1EB53A', '#FFFFFF', '#0072C6'] },
+    { n: 'Nigeria', t: 'v', c: ['#008751', '#FFFFFF', '#008751'] },
+    { n: 'Mali', t: 'v', c: ['#14B53A', '#FCD116', '#CE1126'] },
+    { n: 'Guinea', t: 'v', c: ['#CE1126', '#FCD116', '#009460'] },
+    { n: 'Chad', t: 'v', c: ['#002664', '#FECB00', '#C60C30'] },
     { n: 'Sweden', t: 'x', c: ['#006AA7', '#FECC00'] },
     { n: 'Denmark', t: 'x', c: ['#C60C30', '#FFFFFF'] },
     { n: 'Norway', t: 'x', c: ['#BA0C2F', '#00205B'] },
     { n: 'Finland', t: 'x', c: ['#FFFFFF', '#003580'] },
-    { n: 'Switzerland', t: '+', c: ['#D52B1E', '#FFFFFF'] }
+    { n: 'Switzerland', t: '+', c: ['#D52B1E', '#FFFFFF'] },
+    { n: 'Japan', t: 'o', c: ['#FFFFFF', '#BC002D'] },
+    { n: 'Bangladesh', t: 'o', c: ['#006A4E', '#F42A41'] },
+    { n: 'Palau', t: 'o', c: ['#4AADD6', '#FFDE00'] }
   ];
-  // Draw a flag at `size` px, centered in a `canvasSize` square.
-  function flagCanvas(def, size, canvasSize) {
-    canvasSize = canvasSize || FINAL_SIZE;
+  // Draw a flag at `size` px, centered in the 16x16 icon, shifted by (ox,oy).
+  function flagCanvas(def, size, ox, oy) {
     const out = document.createElement('canvas');
-    out.width = canvasSize;
-    out.height = canvasSize;
+    out.width = FINAL_SIZE;
+    out.height = FINAL_SIZE;
     const ctx = out.getContext('2d', { willReadFrequently: true });
-    const off = Math.round((canvasSize - size) / 2);
-    if (def.t === 'x' || def.t === '+') {
+    ctx.translate(ox || 0, oy || 0);
+    const off = Math.round((FINAL_SIZE - size) / 2);
+    if (def.t === 'o') {
+      // solid field + centred disc (Japan / Bangladesh / Palau)
+      ctx.fillStyle = def.c[0];
+      ctx.fillRect(off, off, size, size);
+      ctx.fillStyle = def.c[1];
+      ctx.beginPath();
+      ctx.arc(off + size / 2, off + size / 2, size * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (def.t === 'x' || def.t === '+') {
       ctx.fillStyle = def.c[0];
       ctx.fillRect(off, off, size, size);
       ctx.fillStyle = def.c[1];
@@ -1413,7 +1439,7 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = ch;
-      b.addEventListener('click', () => { emojiFlag = null; emojiInput.value = ch; renderEmojiPreview(); });
+      b.addEventListener('click', () => { emojiFlag = null; emojiOffX = emojiOffY = 0; emojiInput.value = ch; renderEmojiPreview(); });
       emojiQuick.appendChild(b);
     }
   }
@@ -1425,7 +1451,7 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = ch;
-      b.addEventListener('click', () => { emojiFlag = null; emojiInput.value = ch; renderEmojiPreview(); });
+      b.addEventListener('click', () => { emojiFlag = null; emojiOffX = emojiOffY = 0; emojiInput.value = ch; renderEmojiPreview(); });
       emojiQuick.appendChild(b);
     }
     for (const def of FLAGS) {
@@ -1440,7 +1466,7 @@
       cv.style.borderRadius = '2px';
       b.style.padding = '2px';
       b.appendChild(cv);
-      b.addEventListener('click', () => { emojiFlag = def; emojiInput.value = ''; renderEmojiPreview(); });
+      b.addEventListener('click', () => { emojiFlag = def; emojiOffX = emojiOffY = 0; emojiInput.value = ''; renderEmojiPreview(); });
       emojiQuick.appendChild(b);
     }
   }
@@ -1477,41 +1503,62 @@
   toolEmoji.addEventListener('click', openEmojiModal);
   emojiCancel.addEventListener('click', closeEmojiModal);
   emojiModal.addEventListener('click', (e) => { if (e.target === emojiModal) closeEmojiModal(); });
-  emojiInput.addEventListener('input', () => { emojiFlag = null; renderEmojiPreview(); });
+  emojiInput.addEventListener('input', () => { emojiFlag = null; emojiOffX = emojiOffY = 0; renderEmojiPreview(); });
   emojiInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); emojiConvert.click(); }
     if (e.key === 'Escape') closeEmojiModal();
   });
 
-  // Draw the emoji large and centered on a square canvas via the system
-  // emoji font.
+  // Draw the emoji large via the system emoji font, then crop to its ink
+  // bounding box (square, centered) so it FILLS the icon instead of floating
+  // in the font's built-in padding.
   function renderEmojiCanvas(text) {
-    const size = 128;
+    const R = 128;
     const c = document.createElement('canvas');
-    c.width = size;
-    c.height = size;
+    c.width = R;
+    c.height = R;
     const cx = c.getContext('2d', { willReadFrequently: true });
     cx.textAlign = 'center';
     cx.textBaseline = 'middle';
-    cx.font = '104px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
-    cx.fillText(text, size / 2, size / 2 + 4);
-    return c;
+    cx.font = '112px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
+    cx.fillText(text, R / 2, R / 2 + 4);
+    // ink bounding box (alpha > 16)
+    const data = cx.getImageData(0, 0, R, R).data;
+    let minX = R, minY = R, maxX = -1, maxY = -1;
+    for (let y = 0; y < R; y++) {
+      for (let x = 0; x < R; x++) {
+        if (data[(y * R + x) * 4 + 3] > 16) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return c; // empty (unknown glyph)
+    // square crop centered on the ink, with a tiny 1px breathing margin
+    const s = Math.max(maxX - minX, maxY - minY) + 3;
+    const ccx = (minX + maxX) / 2, ccy = (minY + maxY) / 2;
+    const out = document.createElement('canvas');
+    out.width = s;
+    out.height = s;
+    out.getContext('2d', { willReadFrequently: true })
+      .drawImage(c, Math.round(ccx - s / 2), Math.round(ccy - s / 2), s, s, 0, 0, s, s);
+    return out;
   }
 
   // Build the final 16x16 icon: render the emoji big, downscale it to `size`
-  // px with the chosen quality, then centre that in the 16x16 grid. Size < 16
-  // makes the emoji smaller (resizable insert); size 16 fills the icon.
-  // Render into a `canvasSize` square, the emoji scaled to `size` px and
-  // centred. canvasSize > FINAL_SIZE lets the preview show the overscan that
-  // the 16x16 export will crop off.
-  function buildEmojiCanvas(text, mode, size, canvasSize) {
-    canvasSize = canvasSize || FINAL_SIZE;
+  // px with the chosen quality, centre it in the 16x16 grid, then shift by the
+  // drag offset. Size < 16 shrinks it, size > 16 overscans (fills/crops), and
+  // dragging repositions it - anything pushed off the grid is cropped.
+  function buildEmojiCanvas(text, mode, size, ox, oy) {
     const src = renderEmojiCanvas(text);
     const out = document.createElement('canvas');
-    out.width = canvasSize;
-    out.height = canvasSize;
+    out.width = FINAL_SIZE;
+    out.height = FINAL_SIZE;
     const octx = out.getContext('2d', { willReadFrequently: true });
-    const off = Math.round((canvasSize - size) / 2);
+    const off = Math.round((FINAL_SIZE - size) / 2);
+    octx.translate(ox || 0, oy || 0);
     if (mode === 'dominant' || mode === 'median') {
       const sctx = src.getContext('2d', { willReadFrequently: true });
       const sdata = sctx.getImageData(0, 0, src.width, src.height);
@@ -1528,42 +1575,47 @@
     return out;
   }
 
-  // The icon for whatever is armed - a procedural flag or an emoji - rendered
-  // into a `canvasSize` square. Returns null if there's nothing to render.
-  function iconCanvasAt(canvasSize) {
-    if (emojiFlag) return flagCanvas(emojiFlag, emojiSize, canvasSize);
+  // The final 16x16 icon for whatever is armed - a flag or an emoji - or null.
+  function iconCanvasAt() {
+    if (emojiFlag) return flagCanvas(emojiFlag, emojiSize, emojiOffX, emojiOffY);
     const text = emojiInput.value.trim();
     if (!text) return null;
-    return buildEmojiCanvas(text, emojiQuality, emojiSize, canvasSize);
+    return buildEmojiCanvas(text, emojiQuality, emojiSize, emojiOffX, emojiOffY);
   }
 
-  // Live preview: shows the icon on a slightly larger canvas so overscan is
-  // visible, dims everything outside the 16x16 export area, and outlines that
-  // usable area - so you can fit/resize the emoji before inserting.
-  const PREVIEW_BUFFER = 24; // 16 usable + 4px overscan margin each side
-  const PREVIEW_MARGIN = (PREVIEW_BUFFER - FINAL_SIZE) / 2;
+  // Live preview: the exact 16x16 icon that will be inserted, shown at a crisp
+  // 9x (the CSS scales the 16px buffer). Drag it to reposition (see below).
   function renderEmojiPreview() {
     const ctx = emojiPreviewCtx;
-    ctx.clearRect(0, 0, PREVIEW_BUFFER, PREVIEW_BUFFER);
-    const icon = iconCanvasAt(PREVIEW_BUFFER);
-    if (icon) {
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(icon, 0, 0);
-    }
-    // dim the overscan (cropped) border
-    const m = PREVIEW_MARGIN, F = FINAL_SIZE, B = PREVIEW_BUFFER;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(0, 0, B, m);
-    ctx.fillRect(0, B - m, B, m);
-    ctx.fillRect(0, m, m, F);
-    ctx.fillRect(B - m, m, m, F);
-    // 1px outline of the usable 16x16 export area
-    ctx.fillStyle = 'rgba(90,169,255,0.95)';
-    ctx.fillRect(m, m, F, 1);
-    ctx.fillRect(m, m + F - 1, F, 1);
-    ctx.fillRect(m, m, 1, F);
-    ctx.fillRect(m + F - 1, m, 1, F);
+    ctx.clearRect(0, 0, FINAL_SIZE, FINAL_SIZE);
+    const icon = iconCanvasAt();
+    if (!icon) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(icon, 0, 0);
   }
+
+  // Drag the preview to nudge the emoji/flag inside the 16x16 icon. Delta is
+  // mapped from display px to icon px via the on-screen scale.
+  let emojiDrag = null;
+  emojiPreview.addEventListener('pointerdown', (e) => {
+    emojiDrag = { x: e.clientX, y: e.clientY, ox: emojiOffX, oy: emojiOffY };
+    try { emojiPreview.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault();
+  });
+  emojiPreview.addEventListener('pointermove', (e) => {
+    if (!emojiDrag) return;
+    const rect = emojiPreview.getBoundingClientRect();
+    const scale = rect.width / FINAL_SIZE; // display px per icon px
+    emojiOffX = emojiDrag.ox + Math.round((e.clientX - emojiDrag.x) / scale);
+    emojiOffY = emojiDrag.oy + Math.round((e.clientY - emojiDrag.y) / scale);
+    renderEmojiPreview();
+  });
+  function endEmojiDrag(e) {
+    emojiDrag = null;
+    if (e && emojiPreview.hasPointerCapture(e.pointerId)) emojiPreview.releasePointerCapture(e.pointerId);
+  }
+  emojiPreview.addEventListener('pointerup', endEmojiDrag);
+  emojiPreview.addEventListener('pointercancel', endEmojiDrag);
 
   // Insert stamps the emoji onto the PAINT layer (not the source image), so
   // it sits on top of whatever is loaded and stays editable - move, erase,
