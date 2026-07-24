@@ -3415,31 +3415,72 @@
   // real frosted display (bloom, no hard pixel edges), unlike the Mini.
   function renderPlayerScreen() {
     const { x: sx, y: sy, size } = PLAYER_SCREEN;
-    const N = FINAL_SIZE;            // 16
-    const cell = size / N;           // 10px per LED
+    const N = FINAL_SIZE;                     // 16
+    // Inset the LED matrix from the screen edge (margin to the border, like the
+    // real device - the grid never touches the rounded screen frame).
+    const inset = Math.round(size * 0.11);
+    const gx = sx + inset, gy = sy + inset, gsize = size - inset * 2;
+    const cell = gsize / N;
+    const dot = cell * 0.84;                  // LED square; the gap = grid line
+    const rad = dot * 0.26;                   // rounded-square LED
     const data = rightCtx.getImageData(0, 0, N, N).data;
     yotoCtx.save();
-    // Clip to the rounded screen so glow never spills onto the bezel.
+    // Clip to the rounded screen so nothing spills onto the bezel.
     yotoCtx.beginPath();
     yotoCtx.roundRect(sx, sy, size, size, 26);
     yotoCtx.clip();
+
+    // Active-matrix panel: a touch darker than the frosted frame so the grid
+    // area reads as the LED display.
+    yotoCtx.fillStyle = '#c3c4c0';
+    yotoCtx.beginPath();
+    yotoCtx.roundRect(gx - cell * 0.2, gy - cell * 0.2, gsize + cell * 0.4, gsize + cell * 0.4, 8);
+    yotoCtx.fill();
+
+    // Off-state grid: every cell is a faint light square, so the 16x16 matrix
+    // is visible even where the icon is dark/empty (as on the real screen).
+    yotoCtx.fillStyle = 'rgba(255,255,255,0.30)';
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const x = gx + c * cell + (cell - dot) / 2;
+        const y = gy + r * cell + (cell - dot) / 2;
+        yotoCtx.beginPath();
+        yotoCtx.roundRect(x, y, dot, dot, rad);
+        yotoCtx.fill();
+      }
+    }
+
+    // Bloom behind lit LEDs (keeps the frosted glow).
     for (let r = 0; r < N; r++) {
       for (let c = 0; c < N; c++) {
         const i = (r * N + c) * 4;
         const a = data[i + 3];
         if (a < 20) continue;
         const R = data[i], G = data[i + 1], B = data[i + 2];
-        const cx = sx + c * cell + cell / 2;
-        const cy = sy + r * cell + cell / 2;
-        const rad = cell * 0.9;      // slight overlap -> diffused, continuous
-        const al = a / 255;
-        const g = yotoCtx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-        g.addColorStop(0, `rgba(${R},${G},${B},${0.95 * al})`);
-        g.addColorStop(0.45, `rgba(${R},${G},${B},${0.55 * al})`);
+        const cx = gx + c * cell + cell / 2;
+        const cy = gy + r * cell + cell / 2;
+        const g = yotoCtx.createRadialGradient(cx, cy, 0, cx, cy, cell * 0.75);
+        g.addColorStop(0, `rgba(${R},${G},${B},${0.3 * (a / 255)})`);
         g.addColorStop(1, `rgba(${R},${G},${B},0)`);
         yotoCtx.fillStyle = g;
         yotoCtx.beginPath();
-        yotoCtx.arc(cx, cy, rad, 0, Math.PI * 2);
+        yotoCtx.arc(cx, cy, cell * 0.75, 0, Math.PI * 2);
+        yotoCtx.fill();
+      }
+    }
+
+    // Lit LED squares on top -> distinct pixels.
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const i = (r * N + c) * 4;
+        const a = data[i + 3];
+        if (a < 20) continue;
+        const R = data[i], G = data[i + 1], B = data[i + 2];
+        const x = gx + c * cell + (cell - dot) / 2;
+        const y = gy + r * cell + (cell - dot) / 2;
+        yotoCtx.fillStyle = `rgba(${R},${G},${B},${a / 255})`;
+        yotoCtx.beginPath();
+        yotoCtx.roundRect(x, y, dot, dot, rad);
         yotoCtx.fill();
       }
     }
