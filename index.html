@@ -124,6 +124,12 @@
     background: var(--accent);
     color: var(--accent-text);
   }
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 7px;
+  }
   .segmented {
     display: inline-flex;
     border: 1px solid var(--panel-border);
@@ -261,6 +267,13 @@
   .text-size-seg .segment {
     padding: 2px 6px;
     font-size: 11px;
+  }
+  #shapeTypeSeg .segment,
+  #shapeFillSeg .segment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 7px;
   }
   /* Special-character palette: full-width row that wraps below the
      toolbar line while open. */
@@ -400,6 +413,40 @@
   .grid-overlay.on {
     display: block;
   }
+  /* Symmetry mirror-line guide - display only, never exported. Same footprint
+     as the canvas/grid so the centre lines land on the true mirror axes. */
+  .sym-overlay {
+    position: absolute;
+    top: 5%;
+    left: 5%;
+    width: 90%;
+    height: 90%;
+    box-sizing: border-box;
+    pointer-events: none;
+    display: none;
+  }
+  .sym-overlay.on {
+    display: block;
+  }
+  .sym-overlay .sym-v,
+  .sym-overlay .sym-h {
+    position: absolute;
+    display: none;
+  }
+  .sym-overlay .sym-v {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left: 1px dashed rgba(90, 169, 255, 0.85);
+  }
+  .sym-overlay .sym-h {
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top: 1px dashed rgba(90, 169, 255, 0.85);
+  }
+  .sym-overlay.show-v .sym-v { display: block; }
+  .sym-overlay.show-h .sym-h { display: block; }
   .drop-hint {
     color: var(--text-dim);
     font-size: 12px;
@@ -547,11 +594,58 @@
     font-size: 22px;
     text-align: center;
   }
+  .emoji-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .emoji-top .emoji-input {
+    flex: 1;
+  }
+  .emoji-preview {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    background-image:
+      linear-gradient(45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--checker-a) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--checker-a) 75%);
+    background-size: 12px 12px;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+    background-color: var(--checker-b);
+  }
+  .emoji-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .emoji-tabs button {
+    font-size: 11px;
+    padding: 3px 8px;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .emoji-tabs button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
   .emoji-quick {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    margin: 10px 0;
+    margin: 0 0 4px;
+    max-height: 156px;
+    overflow-y: auto;
   }
   .emoji-quick button {
     font-size: 20px;
@@ -572,6 +666,21 @@
     margin: 12px 0 4px;
     font-size: 12px;
     color: var(--text-dim);
+  }
+  .emoji-size {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 4px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .emoji-size input[type="range"] {
+    flex: 1;
+  }
+  .emoji-size #emojiSizeVal {
+    min-width: 18px;
+    text-align: right;
   }
   .emoji-actions {
     display: flex;
@@ -644,9 +753,9 @@
       <span class="sub-value">Sampling</span>
       <div class="segmented" id="samplingSegmented">
         <button type="button" class="segment active" data-mode="smooth">Smooth</button>
+        <button type="button" class="segment" data-mode="median">Median</button>
         <button type="button" class="segment" data-mode="nearest">Nearest</button>
         <button type="button" class="segment" data-mode="dominant">Dominant</button>
-        <button type="button" class="segment" data-mode="median">Median</button>
       </div>
     </div>
 
@@ -710,6 +819,31 @@
             <path d="M8 0L5.5 2.5h1.75v4.75H2.5V5.5L0 8l2.5 2.5V9.25h4.75V14H5.5L8 16l2.5-2.5H8.75V9.25h4.75V10.5L16 8l-2.5-2.5v1.75H8.75V2.5H10.5L8 0z"/>
           </svg>
         </button>
+        <button id="toolShape" type="button" class="tool-btn" title="Shapes: drag to draw a rectangle / square / circle">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4">
+            <rect x="1.5" y="4.5" width="7" height="7" rx="1"/>
+            <circle cx="11" cy="10" r="3.6"/>
+          </svg>
+        </button>
+        <div class="segmented text-size-seg" id="shapeTypeSeg" style="display:none">
+          <button type="button" class="segment active" data-shape="rect" title="Rectangle">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4" width="13" height="8" rx="1"/></svg>
+          </button>
+          <button type="button" class="segment" data-shape="square" title="Square">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>
+          </button>
+          <button type="button" class="segment" data-shape="circle" title="Circle / ellipse">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/></svg>
+          </button>
+        </div>
+        <div class="segmented text-size-seg" id="shapeFillSeg" style="display:none">
+          <button type="button" class="segment active" data-fill="1" title="Filled">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>
+          </button>
+          <button type="button" class="segment" data-fill="0" title="Outline only">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>
+          </button>
+        </div>
         <input type="text" id="textInput" class="text-input" placeholder="Text" maxlength="16" spellcheck="false" style="display:none">
         <button id="textCharsBtn" type="button" class="tool-btn" title="Special characters" style="display:none">
           <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
@@ -737,7 +871,11 @@
         </button>
         <button id="brushEraser" type="button" class="brush-swatch brush-eraser" title="Eraser (transparent hole)"></button>
         <button id="brushUnpaint" type="button" class="brush-swatch brush-unpaint" title="Rubber: remove paint, restore image"></button>
-        <button id="paintUndoBtn" type="button" class="secondary center-btn" disabled>Undo</button>
+        <button id="paintUndoBtn" type="button" class="secondary center-btn icon-btn" title="Undo (Ctrl+Z)" disabled>
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8a5 5 0 1 1 1.5 3.5"/><path d="M3 4.5V8h3.5"/>
+          </svg>
+        </button>
         <button id="paintClearBtn" type="button" class="secondary center-btn">Clear</button>
         <button id="symBtn" type="button" class="secondary center-btn" title="Symmetry: off (click to cycle horizontal / vertical / quad mirror)">Sym</button>
         <button id="maskBtn" type="button" class="secondary center-btn" title="Paint as mask: off (paint draws normally)">Mask</button>
@@ -749,6 +887,7 @@
       <div class="panel-body">
         <canvas id="rightCanvas" width="16" height="16"></canvas>
         <div class="grid-overlay on" id="gridOverlay"></div>
+        <div class="sym-overlay" id="symOverlay"><span class="sym-v"></span><span class="sym-h"></span></div>
       </div>
     </div>
     <div class="panel">
@@ -795,8 +934,17 @@
 <div class="emoji-modal" id="emojiModal" style="display:none">
   <div class="emoji-card">
     <div class="emoji-title">Emoji to pixel art</div>
-    <input type="text" id="emojiInput" class="emoji-input" placeholder="Type or paste an emoji" maxlength="8" spellcheck="false">
+    <div class="emoji-top">
+      <canvas id="emojiPreview" class="emoji-preview" width="16" height="16"></canvas>
+      <input type="text" id="emojiInput" class="emoji-input" placeholder="Type or paste" maxlength="8" spellcheck="false">
+    </div>
+    <div class="emoji-tabs" id="emojiTabs"></div>
     <div class="emoji-quick" id="emojiQuick"></div>
+    <div class="emoji-size">
+      <span>Size</span>
+      <input type="range" id="emojiSizeSlider" min="4" max="20" step="1" value="16">
+      <span id="emojiSizeVal">16</span>
+    </div>
     <div class="emoji-quality">
       <span>Quality</span>
       <div class="segmented" id="emojiQualitySeg">
@@ -807,7 +955,7 @@
     </div>
     <div class="emoji-actions">
       <button type="button" class="secondary center-btn" id="emojiCancel">Cancel</button>
-      <button type="button" class="go" id="emojiConvert">Convert</button>
+      <button type="button" class="go" id="emojiConvert">Insert</button>
     </div>
   </div>
 </div>
@@ -846,7 +994,11 @@
   const toolText = document.getElementById('toolText');
   const toolMove = document.getElementById('toolMove');
   const toolEmoji = document.getElementById('toolEmoji');
+  const toolShape = document.getElementById('toolShape');
+  const shapeTypeSeg = document.getElementById('shapeTypeSeg');
+  const shapeFillSeg = document.getElementById('shapeFillSeg');
   const symBtn = document.getElementById('symBtn');
+  const symOverlay = document.getElementById('symOverlay');
   const textInput = document.getElementById('textInput');
   const textSizeSeg = document.getElementById('textSizeSeg');
   let textSize = 1; // 1x/2x/3x integer scale for the pixel font
@@ -943,9 +1095,11 @@
   // null = untouched, {r,g,b} = painted color, 'erase' = forced transparent.
   let paintLayer = new Array(FINAL_SIZE * FINAL_SIZE).fill(null);
   let activeBrush = null; // 'black' | 'white' | 'color' | 'eraser' | null
-  let paintTool = 'pencil'; // 'pencil' | 'bucket' | 'text' | 'move'
+  let paintTool = 'pencil'; // 'pencil' | 'bucket' | 'text' | 'move' | 'shape'
   let isPainting = false;
   let symMode = 'off'; // 'off' | 'h' | 'v' | 'quad' - live mirror while painting
+  let shapeType = 'rect';  // 'rect' | 'square' | 'circle'
+  let shapeFilled = true;  // fill vs outline-only
   // "Canvas" base-mode: non-destructive override of what the paint layer
   // sits on top of. Never touches paintLayer itself and never goes through
   // undo - it's just a display/render choice, cycled by the toolbar button.
@@ -1062,7 +1216,7 @@
     }
     rightCanvas.style.cursor = paintTool === 'move'
       ? 'move'
-      : paintTool === 'text'
+      : (paintTool === 'text' || paintTool === 'shape')
       ? 'crosshair'
       : activeBrush
         ? (paintTool === 'bucket' ? BUCKET_CURSOR : PENCIL_CURSOR)
@@ -1096,9 +1250,12 @@
     toolBucket.classList.toggle('active', tool === 'bucket');
     toolText.classList.toggle('active', tool === 'text');
     toolMove.classList.toggle('active', tool === 'move');
+    toolShape.classList.toggle('active', tool === 'shape');
     textInput.style.display = tool === 'text' ? 'inline-block' : 'none';
     textSizeSeg.style.display = tool === 'text' ? 'inline-flex' : 'none';
     textCharsBtn.style.display = tool === 'text' ? 'inline-flex' : 'none';
+    shapeTypeSeg.style.display = tool === 'shape' ? 'inline-flex' : 'none';
+    shapeFillSeg.style.display = tool === 'shape' ? 'inline-flex' : 'none';
     if (tool !== 'text') {
       textCharsPop.style.display = 'none';
       textCharsBtn.classList.remove('active');
@@ -1110,20 +1267,42 @@
   toolBucket.addEventListener('click', () => setPaintTool('bucket'));
   toolText.addEventListener('click', () => setPaintTool('text'));
   toolMove.addEventListener('click', () => setPaintTool('move'));
+  toolShape.addEventListener('click', () => setPaintTool('shape'));
 
-  // Symmetry: cycling toolbar button. off -> horizontal -> vertical -> quad.
-  const SYM_LABELS = { off: 'Sym', h: 'Sym: H', v: 'Sym: V', quad: 'Sym: Quad' };
+  shapeTypeSeg.querySelectorAll('.segment').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      shapeType = btn.dataset.shape;
+      shapeTypeSeg.querySelectorAll('.segment').forEach((b) => b.classList.toggle('active', b === btn));
+    });
+  });
+  shapeFillSeg.querySelectorAll('.segment').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      shapeFilled = btn.dataset.fill === '1';
+      shapeFillSeg.querySelectorAll('.segment').forEach((b) => b.classList.toggle('active', b === btn));
+    });
+  });
+
+  // Symmetry: cycling toolbar button. off -> horizontal line -> vertical line
+  // -> quad. Labels show the mirror line: "-" reflects top/bottom, "|" left/
+  // right, "4" both.
+  const SYM_LABELS = { off: 'Sym', h: 'Sym: –', v: 'Sym: |', quad: 'Sym: 4' };
   const SYM_TITLES = {
     off: 'Symmetry: off (click to cycle horizontal / vertical / quad mirror)',
-    h: 'Symmetry: horizontal - mirror left/right while painting',
-    v: 'Symmetry: vertical - mirror top/bottom while painting',
+    h: 'Symmetry: horizontal line - mirror top/bottom while painting',
+    v: 'Symmetry: vertical line - mirror left/right while painting',
     quad: 'Symmetry: quad - mirror across both axes'
   };
+  function updateSymOverlay() {
+    symOverlay.classList.toggle('on', symMode !== 'off');
+    symOverlay.classList.toggle('show-h', symMode === 'h' || symMode === 'quad');
+    symOverlay.classList.toggle('show-v', symMode === 'v' || symMode === 'quad');
+  }
   symBtn.addEventListener('click', () => {
     symMode = symMode === 'off' ? 'h' : symMode === 'h' ? 'v' : symMode === 'v' ? 'quad' : 'off';
     symBtn.textContent = SYM_LABELS[symMode];
     symBtn.title = SYM_TITLES[symMode];
     symBtn.classList.toggle('active', symMode !== 'off');
+    updateSymOverlay();
   });
 
   // ---------- emoji / icon to pixel art ----------
@@ -1134,31 +1313,156 @@
   // font renders (Segoe UI Emoji on Windows, Apple Color Emoji on macOS...).
   const emojiModal = document.getElementById('emojiModal');
   const emojiInput = document.getElementById('emojiInput');
+  const emojiTabs = document.getElementById('emojiTabs');
   const emojiQuick = document.getElementById('emojiQuick');
   const emojiQualitySeg = document.getElementById('emojiQualitySeg');
   const emojiCancel = document.getElementById('emojiCancel');
   const emojiConvert = document.getElementById('emojiConvert');
-  const EMOJI_QUICK = ['😀','😎','😍','🥰','😂','😉','😴','🤖','👻','💩',
-    '❤️','⭐','🌈','🔥','✨','🌸','🍎','🍕','🎈','🎵',
-    '🐶','🐱','🦄','🐼','🐸','🦋','🌵','🌙','⚽','🚀'];
+  const emojiPreview = document.getElementById('emojiPreview');
+  const emojiPreviewCtx = emojiPreview.getContext('2d', { willReadFrequently: true });
+  const emojiSizeSlider = document.getElementById('emojiSizeSlider');
+  const emojiSizeVal = document.getElementById('emojiSizeVal');
   let emojiQuality = 'smooth'; // maps to a sampling mode
+  let emojiSize = 16; // px the emoji occupies inside the 16x16 icon (centered)
+  let emojiFlag = null; // a procedural flag def, when armed instead of an emoji
 
-  for (const ch of EMOJI_QUICK) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = ch;
-    b.addEventListener('click', () => { emojiInput.value = ch; emojiInput.focus(); });
-    emojiQuick.appendChild(b);
+  emojiSizeSlider.addEventListener('input', () => {
+    emojiSize = parseInt(emojiSizeSlider.value, 10);
+    emojiSizeVal.textContent = emojiSize;
+    renderEmojiPreview();
+  });
+
+  const EMOJI_CATEGORIES = {
+    Faces: ['😀','😃','😄','😁','😆','😅','😂','🙂','😉','😊','😍','🥰','😘','😎','🤩','🤔','😴','😭','😡','😱','🥳','🤗','😇','🤠','🥺','😜','🤪','😬','🙃','😌','🤖','👻','💀','👽','🤡','😈','🎃','💩'],
+    Animals: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🦄','🐔','🐧','🐦','🦉','🦋','🐢','🐍','🐙','🐠','🐬','🐳','🦕','🦖','🐝','🐞','🦀','🐡','🦈','🐊','🦓','🦒','🐘'],
+    Food: ['🍎','🍌','🍓','🍒','🍑','🍍','🥝','🍅','🥕','🌽','🍕','🍔','🌭','🍟','🍩','🍪','🎂','🍰','🍫','🍬','🍭','☕','🍺','🥤','🍉','🍇','🥑','🍞','🧀','🍳','🌮','🍦','🍯','🥨','🍿','🧁'],
+    Nature: ['🌸','🌼','🌻','🌹','🌷','🌵','🌲','🌴','🍀','🍁','🍄','⭐','🌟','✨','⚡','🔥','💧','🌈','☀️','🌙','⛅','☁️','❄️','🌊','🌍','🪐','☄️','🌿','🌱','🍃','🌾','🌺'],
+    Travel: ['🚀','🚗','🚕','🚌','🏎️','🚓','🚑','🚒','🚲','🛴','✈️','🚁','⛵','🚤','🚢','🏠','🏰','🗼','🎡','🎢','⛺','🚂','🛸','🚉','⚓','🚦','🏝️','🌋','🏔️','🎠','🎪','🗿'],
+    Symbols: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','💖','💘','⭐','🌟','✨','💫','🔥','💧','⚡','☀️','🌙','☂️','♠️','♥️','♦️','♣️','✔️','❌','➕','➖','❓','❗','🔴','🟠','🟡','🟢','🔵','🟣']
+  };
+
+  // Generic flag emoji render fine everywhere (single codepoint). Country
+  // flags (regional-indicator pairs) DON'T on Windows - Segoe UI Emoji shows
+  // "DE"/"FR" text - so those are drawn procedurally as stripe/cross flags.
+  const GENERIC_FLAGS = ['🏁','🚩','🏳️','🏴','🏴‍☠️','🏳️‍🌈','🏳️‍⚧️'];
+  const FLAGS = [
+    { n: 'Germany', t: 'h', c: ['#000000', '#DD0000', '#FFCE00'] },
+    { n: 'Austria', t: 'h', c: ['#ED2939', '#FFFFFF', '#ED2939'] },
+    { n: 'Netherlands', t: 'h', c: ['#AE1C28', '#FFFFFF', '#21468B'] },
+    { n: 'Russia', t: 'h', c: ['#FFFFFF', '#0039A6', '#D52B1E'] },
+    { n: 'Ukraine', t: 'h', c: ['#0057B7', '#FFD700'] },
+    { n: 'Poland', t: 'h', c: ['#FFFFFF', '#DC143C'] },
+    { n: 'Hungary', t: 'h', c: ['#CE2939', '#FFFFFF', '#477050'] },
+    { n: 'Bulgaria', t: 'h', c: ['#FFFFFF', '#00966E', '#D62612'] },
+    { n: 'Spain', t: 'h', c: ['#AA151B', '#F1BF00', '#F1BF00', '#AA151B'] },
+    { n: 'France', t: 'v', c: ['#002395', '#FFFFFF', '#ED2939'] },
+    { n: 'Italy', t: 'v', c: ['#009246', '#FFFFFF', '#CE2B37'] },
+    { n: 'Ireland', t: 'v', c: ['#169B62', '#FFFFFF', '#FF883E'] },
+    { n: 'Belgium', t: 'v', c: ['#000000', '#FDDA24', '#EF3340'] },
+    { n: 'Romania', t: 'v', c: ['#002B7F', '#FCD116', '#CE1126'] },
+    { n: 'Lithuania', t: 'h', c: ['#FDB913', '#006A44', '#C1272D'] },
+    { n: 'Sweden', t: 'x', c: ['#006AA7', '#FECC00'] },
+    { n: 'Denmark', t: 'x', c: ['#C60C30', '#FFFFFF'] },
+    { n: 'Norway', t: 'x', c: ['#BA0C2F', '#00205B'] },
+    { n: 'Finland', t: 'x', c: ['#FFFFFF', '#003580'] },
+    { n: 'Switzerland', t: '+', c: ['#D52B1E', '#FFFFFF'] }
+  ];
+  // Draw a flag into a 16x16 canvas at `size` px, centered.
+  function flagCanvas(def, size) {
+    const out = document.createElement('canvas');
+    out.width = FINAL_SIZE;
+    out.height = FINAL_SIZE;
+    const ctx = out.getContext('2d', { willReadFrequently: true });
+    const off = Math.floor((FINAL_SIZE - size) / 2);
+    if (def.t === 'x' || def.t === '+') {
+      ctx.fillStyle = def.c[0];
+      ctx.fillRect(off, off, size, size);
+      ctx.fillStyle = def.c[1];
+      const cw = Math.max(2, Math.round(size * 0.22));
+      const cyBar = off + Math.floor((size - cw) / 2);
+      // Nordic cross sits left of centre; Swiss '+' is centred.
+      const cxBar = def.t === '+' ? cyBar : off + Math.max(1, Math.round(size * 0.34));
+      ctx.fillRect(cxBar, off, cw, size);
+      ctx.fillRect(off, cyBar, size, cw);
+    } else {
+      const n = def.c.length;
+      for (let i = 0; i < n; i++) {
+        ctx.fillStyle = def.c[i];
+        if (def.t === 'h') {
+          const y0 = off + Math.round(i * size / n), y1 = off + Math.round((i + 1) * size / n);
+          ctx.fillRect(off, y0, size, y1 - y0);
+        } else {
+          const x0 = off + Math.round(i * size / n), x1 = off + Math.round((i + 1) * size / n);
+          ctx.fillRect(x0, off, x1 - x0, size);
+        }
+      }
+    }
+    return out;
   }
+
+  function populateEmojiGrid(category) {
+    emojiQuick.innerHTML = '';
+    for (const ch of EMOJI_CATEGORIES[category]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = ch;
+      b.addEventListener('click', () => { emojiFlag = null; emojiInput.value = ch; renderEmojiPreview(); });
+      emojiQuick.appendChild(b);
+    }
+  }
+  // Flags tab: generic flag emoji (render fine) + procedurally drawn country
+  // flags. Clicking a country flag arms it; clicking an emoji flag disarms.
+  function populateFlagsGrid() {
+    emojiQuick.innerHTML = '';
+    for (const ch of GENERIC_FLAGS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = ch;
+      b.addEventListener('click', () => { emojiFlag = null; emojiInput.value = ch; renderEmojiPreview(); });
+      emojiQuick.appendChild(b);
+    }
+    for (const def of FLAGS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.title = def.n;
+      const cv = flagCanvas(def, FINAL_SIZE);
+      cv.style.width = '20px';
+      cv.style.height = '20px';
+      cv.style.imageRendering = 'pixelated';
+      cv.style.display = 'block';
+      cv.style.borderRadius = '2px';
+      b.style.padding = '2px';
+      b.appendChild(cv);
+      b.addEventListener('click', () => { emojiFlag = def; emojiInput.value = ''; renderEmojiPreview(); });
+      emojiQuick.appendChild(b);
+    }
+  }
+  const EMOJI_TABS = Object.keys(EMOJI_CATEGORIES).concat('Flags');
+  EMOJI_TABS.forEach((cat, i) => {
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.textContent = cat;
+    t.classList.toggle('active', i === 0);
+    t.addEventListener('click', () => {
+      emojiTabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b === t));
+      if (cat === 'Flags') populateFlagsGrid();
+      else populateEmojiGrid(cat);
+    });
+    emojiTabs.appendChild(t);
+  });
+  populateEmojiGrid(Object.keys(EMOJI_CATEGORIES)[0]);
+
   emojiQualitySeg.querySelectorAll('.segment').forEach((btn) => {
     btn.addEventListener('click', () => {
       emojiQuality = btn.dataset.q;
       emojiQualitySeg.querySelectorAll('.segment').forEach((b) => b.classList.toggle('active', b === btn));
+      renderEmojiPreview();
     });
   });
 
   function openEmojiModal() {
     emojiModal.style.display = 'flex';
+    renderEmojiPreview();
     emojiInput.focus();
     emojiInput.select();
   }
@@ -1166,6 +1470,7 @@
   toolEmoji.addEventListener('click', openEmojiModal);
   emojiCancel.addEventListener('click', closeEmojiModal);
   emojiModal.addEventListener('click', (e) => { if (e.target === emojiModal) closeEmojiModal(); });
+  emojiInput.addEventListener('input', () => { emojiFlag = null; renderEmojiPreview(); });
   emojiInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); emojiConvert.click(); }
     if (e.key === 'Escape') closeEmojiModal();
@@ -1178,7 +1483,7 @@
     const c = document.createElement('canvas');
     c.width = size;
     c.height = size;
-    const cx = c.getContext('2d');
+    const cx = c.getContext('2d', { willReadFrequently: true });
     cx.textAlign = 'center';
     cx.textBaseline = 'middle';
     cx.font = '104px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
@@ -1186,37 +1491,65 @@
     return c;
   }
 
-  // Same page setup as loading an image file, but the source is a canvas.
-  function useSourceCanvas(canvas, name) {
-    sourceImage = canvas;
-    cropOffsetX = 0;
-    cropOffsetY = 0;
-    zoom = 1;
-    zoomSlider.value = '1';
-    zoomVal.textContent = '1.0';
-    canvasMode = 'image';
-    updateCanvasModeUI();
-    colorRemap = new Map();
-    colorsUsedKeys = [];
-    filenameInput.value = name || 'emoji';
-    dropHint.style.display = 'none';
-    leftCanvas.style.display = 'block';
-    rightCanvas.style.display = 'block';
-    leftCanvas.style.cursor = 'grab';
-    yotoHint.style.display = 'none';
-    yotoCanvas.style.display = 'block';
-    exportBtn.disabled = false;
-    centerBtn.disabled = false;
-    processAll();
+  // Build the final 16x16 icon: render the emoji big, downscale it to `size`
+  // px with the chosen quality, then centre that in the 16x16 grid. Size < 16
+  // makes the emoji smaller (resizable insert); size 16 fills the icon.
+  function buildEmojiCanvas(text, mode, size) {
+    const src = renderEmojiCanvas(text);
+    const out = document.createElement('canvas');
+    out.width = FINAL_SIZE;
+    out.height = FINAL_SIZE;
+    const octx = out.getContext('2d', { willReadFrequently: true });
+    const off = Math.floor((FINAL_SIZE - size) / 2);
+    if (mode === 'dominant' || mode === 'median') {
+      const sctx = src.getContext('2d', { willReadFrequently: true });
+      const sdata = sctx.getImageData(0, 0, src.width, src.height);
+      const tmp = document.createElement('canvas');
+      tmp.width = size;
+      tmp.height = size;
+      tmp.getContext('2d').putImageData(cellSample(sdata, size, mode), 0, 0);
+      octx.imageSmoothingEnabled = false;
+      octx.drawImage(tmp, off, off);
+    } else {
+      octx.imageSmoothingEnabled = mode === 'smooth';
+      octx.drawImage(src, 0, 0, src.width, src.height, off, off, size, size);
+    }
+    return out;
   }
 
-  emojiConvert.addEventListener('click', () => {
+  // The 16x16 icon for whatever is currently armed - a procedural flag or an
+  // emoji from the input. Returns null if there's nothing to render.
+  function currentIconCanvas() {
+    if (emojiFlag) return flagCanvas(emojiFlag, emojiSize);
     const text = emojiInput.value.trim();
-    if (!text) { emojiInput.focus(); return; }
-    // quality -> sampling mode, and reflect it in the Sampling segmented UI
-    samplingMode = emojiQuality;
-    samplingButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === samplingMode));
-    useSourceCanvas(renderEmojiCanvas(text), 'emoji');
+    if (!text) return null;
+    return buildEmojiCanvas(text, emojiQuality, emojiSize);
+  }
+
+  // Live preview reacting to the current emoji/flag + quality + size choice.
+  function renderEmojiPreview() {
+    emojiPreviewCtx.clearRect(0, 0, FINAL_SIZE, FINAL_SIZE);
+    const icon = currentIconCanvas();
+    if (!icon) return;
+    emojiPreviewCtx.imageSmoothingEnabled = false;
+    emojiPreviewCtx.drawImage(icon, 0, 0);
+  }
+
+  // Insert stamps the emoji onto the PAINT layer (not the source image), so
+  // it sits on top of whatever is loaded and stays editable - move, erase,
+  // recolor - like anything else painted. Opaque pixels are written; the
+  // transparent surround is left alone so the image below shows through.
+  emojiConvert.addEventListener('click', () => {
+    const out = currentIconCanvas();
+    if (!out) { emojiInput.focus(); return; }
+    const data = out.getContext('2d', { willReadFrequently: true })
+      .getImageData(0, 0, FINAL_SIZE, FINAL_SIZE).data;
+    pushUndoSnapshot();
+    for (let i = 0; i < FINAL_SIZE * FINAL_SIZE; i++) {
+      if (data[i * 4 + 3] < 128) continue; // keep transparent areas as-is
+      paintLayer[i] = { r: data[i * 4], g: data[i * 4 + 1], b: data[i * 4 + 2] };
+    }
+    processAll();
     closeEmojiModal();
   });
 
@@ -1492,6 +1825,16 @@
       undoPaint();
       return;
     }
+    // Esc mid-shape-drag discards it: drop the ghost and disarm the drag so
+    // the pending pointerup won't commit anything.
+    if (e.key === 'Escape' && paintTool === 'shape' && isPainting) {
+      e.preventDefault();
+      isPainting = false;
+      shapeStart = null;
+      shapeCurrent = null;
+      processAll();
+      return;
+    }
     // Arrow keys nudge the whole drawing by one cell while the Move tool is
     // active (matches the drag behaviour, one undo step per press).
     if (paintTool === 'move') {
@@ -1573,10 +1916,13 @@
   // itself. H mirrors across the vertical centre, V across the horizontal
   // centre, Quad does both. Deduped so a centre pixel isn't written twice.
   const M = FINAL_SIZE - 1;
+  // Mode 'h' has a horizontal mirror line ("-") and reflects top<->bottom;
+  // mode 'v' has a vertical mirror line ("|") and reflects left<->right; quad
+  // does both (plus the diagonal partner).
   function symIndices(x, y) {
     const set = new Set([y * FINAL_SIZE + x]);
-    if (symMode === 'h' || symMode === 'quad') set.add(y * FINAL_SIZE + (M - x));
-    if (symMode === 'v' || symMode === 'quad') set.add((M - y) * FINAL_SIZE + x);
+    if (symMode === 'h' || symMode === 'quad') set.add((M - y) * FINAL_SIZE + x);
+    if (symMode === 'v' || symMode === 'quad') set.add(y * FINAL_SIZE + (M - x));
     if (symMode === 'quad') set.add((M - y) * FINAL_SIZE + (M - x));
     return set;
   }
@@ -1689,6 +2035,84 @@
     processAll();
   }
 
+  // ---------- shapes ----------
+  // Cell indices for a rectangle / square / circle spanning the drag box
+  // (x0,y0)->(x1,y1). Square forces equal sides anchored at the start corner;
+  // circle inscribes an ellipse in the box. Outline mode keeps only the
+  // 1px border.
+  let shapeStart = null;   // drag start cell
+  let shapeCurrent = null; // current cell during the drag
+  function shapeCells(x0, y0, x1, y1) {
+    let ax, ay, bx, by;
+    if (shapeType === 'square') {
+      const side = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+      const ex = x0 + (x1 >= x0 ? side : -side);
+      const ey = y0 + (y1 >= y0 ? side : -side);
+      ax = Math.min(x0, ex); ay = Math.min(y0, ey); bx = Math.max(x0, ex); by = Math.max(y0, ey);
+    } else {
+      ax = Math.min(x0, x1); ay = Math.min(y0, y1); bx = Math.max(x0, x1); by = Math.max(y0, y1);
+    }
+    ax = Math.max(0, ax); ay = Math.max(0, ay);
+    bx = Math.min(FINAL_SIZE - 1, bx); by = Math.min(FINAL_SIZE - 1, by);
+    const cells = [];
+    if (shapeType === 'circle') {
+      const cx = (ax + bx) / 2, cy = (ay + by) / 2;
+      const rx = Math.max(0.5, (bx - ax) / 2), ry = Math.max(0.5, (by - ay) / 2);
+      const inside = (x, y) => {
+        const nx = (x - cx) / (rx + 0.0001), ny = (y - cy) / (ry + 0.0001);
+        return nx * nx + ny * ny <= 1;
+      };
+      for (let y = ay; y <= by; y++) {
+        for (let x = ax; x <= bx; x++) {
+          if (!inside(x, y)) continue;
+          // outline = inside but touching an outside 4-neighbor
+          if (shapeFilled || !inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1)) {
+            cells.push(y * FINAL_SIZE + x);
+          }
+        }
+      }
+    } else {
+      for (let y = ay; y <= by; y++) {
+        for (let x = ax; x <= bx; x++) {
+          if (shapeFilled || x === ax || x === bx || y === ay || y === by) cells.push(y * FINAL_SIZE + x);
+        }
+      }
+    }
+    return cells;
+  }
+
+  // Ghost the pending shape over the live pipeline result (processAll repaints
+  // the real state, so this is cleared as soon as the shape commits or the
+  // tool changes), same technique as the text preview.
+  function drawShapePreview() {
+    processAll();
+    if (!shapeStart || !shapeCurrent) return;
+    const value = textBrushValue();
+    rightCtx.save();
+    // Full opacity - the preview looks exactly like the committed shape.
+    for (const idx of withSymmetry(shapeCells(shapeStart.x, shapeStart.y, shapeCurrent.x, shapeCurrent.y))) {
+      const px = idx % FINAL_SIZE, py = (idx - px) / FINAL_SIZE;
+      if (value === 'erase' || value === 'unpaint') {
+        rightCtx.clearRect(px, py, 1, 1);
+      } else {
+        rightCtx.fillStyle = 'rgb(' + value.r + ',' + value.g + ',' + value.b + ')';
+        rightCtx.fillRect(px, py, 1, 1);
+      }
+    }
+    rightCtx.restore();
+  }
+
+  function commitShape() {
+    if (!shapeStart || !shapeCurrent) return;
+    const cells = shapeCells(shapeStart.x, shapeStart.y, shapeCurrent.x, shapeCurrent.y);
+    if (!cells.length) { processAll(); return; }
+    pushUndoSnapshot();
+    const value = textBrushValue();
+    const paint = value === 'unpaint' ? null : value;
+    for (const idx of withSymmetry(cells)) paintLayer[idx] = paint;
+    processAll();
+  }
+
   // Pointer events (not mouse events) so touch painting works too;
   // setPointerCapture keeps the stroke tracking this element even once the
   // pointer moves outside its bounds during a fast drag.
@@ -1710,6 +2134,17 @@
       // Works without an armed brush (falls back to black); single click
       // stamps, no drag.
       stampTextAt(e.clientX, e.clientY);
+      e.preventDefault();
+      return;
+    }
+    if (paintTool === 'shape') {
+      const c = cellFromClient(e.clientX, e.clientY);
+      if (!c) return;
+      shapeStart = c;
+      shapeCurrent = c;
+      isPainting = true;
+      try { rightCanvas.setPointerCapture(e.pointerId); } catch (_) {}
+      drawShapePreview();
       e.preventDefault();
       return;
     }
@@ -1736,6 +2171,13 @@
       processAll();
       return;
     }
+    if (paintTool === 'shape') {
+      if (!isPainting || !shapeStart) return;
+      const c = cellFromClient(e.clientX, e.clientY);
+      if (c) shapeCurrent = c;
+      drawShapePreview();
+      return;
+    }
     if (paintTool === 'text') {
       drawTextPreviewAt(e.clientX, e.clientY);
       return;
@@ -1745,10 +2187,14 @@
   });
 
   rightCanvas.addEventListener('pointerleave', () => {
-    if (paintTool === 'text') processAll(); // clear the text ghost
+    // clear the hover ghost when idle (not mid-drag) for the preview tools
+    if ((paintTool === 'text' || paintTool === 'shape') && !isPainting) processAll();
   });
 
   function endPaint(e) {
+    if (paintTool === 'shape' && isPainting) commitShape();
+    shapeStart = null;
+    shapeCurrent = null;
     isPainting = false;
     moveBase = null;
     moveStart = null;

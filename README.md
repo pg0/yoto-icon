@@ -15,9 +15,10 @@ Browser tool to turn any image into a 16x16 PNG icon for the [Yoto player](https
 - **Background color**: optional solid fill behind the icon
 - **Paint**: pencil and bucket-fill tools; black / white / custom color / eraser (transparent hole) / rubber (restore image) brushes on the 16x16 grid, undo (Ctrl+Z), clear
 - **Text**: stamp pixel text in three sizes (Tom Thumb 3x6, classic 5x7 dot-matrix, or system-font raster at 16px), with a special-character palette (hearts, stars, dots, diamonds, smileys) and live hover preview
+- **Shapes**: drag to draw a rectangle, square, or circle - filled or outline - with a full-opacity live preview (Esc mid-drag cancels)
 - **Mask**: use the painted area as a stencil (keep) or cutout (cut) of the image instead of drawing color
-- **Emoji to icon**: type or pick an emoji and convert it to 16x16 pixel art via the system emoji font, with Sharp / Balanced / Soft quality
-- **Symmetry**: live mirror while painting - horizontal, vertical, or quad; the pencil, bucket-fill, and text tools all respect it
+- **Emoji to icon**: type or pick an emoji (categorized tabs) and stamp it onto the paint layer as pixel art - live preview, Sharp / Balanced / Soft quality, adjustable size. Includes procedurally-drawn country flags (system fonts can't render flag glyphs on every OS)
+- **Symmetry**: live mirror while painting (horizontal, vertical, or quad) with on-canvas mirror-line guides; the pencil, bucket-fill, shape, and text tools all respect it
 - **Move**: shift the whole painted drawing by dragging with the Move tool, or nudge one pixel with the arrow keys
 - **Live preview**: original | 16x16 output | mockup on a Yoto Mini photo
 - **Palette**: most-used colors with hex + share, click to copy
